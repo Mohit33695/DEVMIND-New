@@ -1,0 +1,160 @@
+/* Stitch Light-First Developer SaaS Design System */
+
+:root {
+  /* Color Palette - Light-First Neutral & Primary Accents */
+  --bg-app: #F8F9FC;
+  --bg-surface: #FFFFFF;
+  --bg-surface-hover: #F3F4F9;
+  --bg-subtle: #F0F2F7;
+  --bg-sidebar: #FAFAFD;
+  --bg-lavender: #F4F3FF;
+
+  --color-primary: #5C54E5;
+  --color-primary-hover: #4B43D4;
+  --color-primary-light: #EEEDFD;
+  --color-primary-text: #FFFFFF;
+
+  --text-main: #111827;
+  --text-muted: #6B7280;
+  --text-subtle: #9CA3AF;
+  --text-on-primary: #FFFFFF;
+
+  --border-subtle: #E5E7EB;
+  --border-default: #E2E4ED;
+  --border-focus: #5C54E5;
+
+  /* Status Colors */
+  --color-success: #10B981;
+  --color-success-bg: #ECFDF5;
+  --color-warning: #F59E0B;
+  --color-warning-bg: #FFFBEB;
+  --color-error: #EF4444;
+  --color-error-bg: #FEF2F2;
+
+  /* Layout Dimensions */
+  --sidebar-width: 256px;
+  --header-height: 60px;
+
+  /* Typography */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Elevation / Shadows */
+  --shadow-xs: 0 1px 2px 0 rgba(16, 24, 40, 0.05);
+  --shadow-sm: 0 1px 3px 0 rgba(16, 24, 40, 0.08), 0 1px 2px 0 rgba(16, 24, 40, 0.04);
+  --shadow-md: 0 4px 6px -1px rgba(16, 24, 40, 0.06), 0 2px 4px -1px rgba(16, 24, 40, 0.03);
+
+  /* Border Radii */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+
+  /* Transitions */
+  --transition-fast: 150ms ease-in-out;
+  --transition-normal: 200ms ease-in-out;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  font-family: var(--font-sans);
+  background-color: var(--bg-app);
+  color: var(--text-main);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Typography Defaults */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--text-main);
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+p {
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+button {
+  font-family: var(--font-sans);
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+/* Scrollbar Customization */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+  border-radius: var(--radius-full);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-subtle);
+}
+
+/* Responsive Shell Helpers */
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+}
+
+.app-main-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-content {
+  flex: 1;
+  padding: 32px 32px;
+  max-width: 1280px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* Responsive Breakpoints */
+@media (min-width: 769px) {
+  .mobile-menu-btn {
+    display: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-content {
+    padding: 20px 16px;
+  }
+
+  .header-analysis-status {
+    display: none !important;
+  }
+
+  aside {
+    transform: translateX(-100%);
+  }
+}
