@@ -1,5 +1,6 @@
 import React from 'react';
 import { useLocation } from 'react-router-dom';
+import { BackendStatusBadge } from './BackendStatusBadge';
 
 interface HeaderProps {
   onToggleMobileSidebar: () => void;
@@ -67,11 +68,8 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileSidebar }) => {
 
       {/* Right Controls Section */}
       <div style={styles.rightSection}>
-        {/* Analysis Status */}
-        <div className="header-analysis-status" style={styles.analysisStatus}>
-          <span style={styles.statusDot}></span>
-          <span style={styles.statusText}>Indexed 2m ago</span>
-        </div>
+        {/* Backend Connection Status */}
+        <BackendStatusBadge />
 
         {/* Re-analyze Button */}
         <button style={styles.reanalyzeBtn} title="Trigger codebase re-analysis">

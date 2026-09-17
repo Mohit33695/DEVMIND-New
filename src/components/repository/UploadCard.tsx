@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import type { DragEvent, ChangeEvent, KeyboardEvent } from 'react';
+import { uploadRepositoryZip, type RepositoryUploadResponse } from '@/api/client';
 
 const MAX_FILE_SIZE_BYTES = 200 * 1024 * 1024; // 200 MB
 
@@ -12,7 +13,10 @@ export const UploadCard: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [error, setError] = useState<ValidationError | null>(null);
   const [isDragOver, setIsDragOver] = useState<boolean>(false);
-  const [isReadyForAnalysis, setIsReadyForAnalysis] = useState<boolean>(false);
+  const [isUploading, setIsUploading] = useState<boolean>(false);
+  const [uploadResult, setUploadResult] = useState<RepositoryUploadResponse | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Helper function to format file sizes cleanly (B, KB, MB)
@@ -25,7 +29,8 @@ export const UploadCard: React.FC = () => {
   // Client-side file validation logic
   const validateAndSetFile = (file: File) => {
     setError(null);
-    setIsReadyForAnalysis(false);
+    setUploadResult(null);
+    setUploadError(null);
 
     // 1. Extension check (.zip)
     const hasZipExtension = file.name.toLowerCase().endsWith('.zip');
@@ -101,7 +106,9 @@ export const UploadCard: React.FC = () => {
   const handleChangeFile = () => {
     setSelectedFile(null);
     setError(null);
-    setIsReadyForAnalysis(false);
+    setUploadResult(null);
+    setUploadError(null);
+    setIsUploading(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -111,8 +118,22 @@ export const UploadCard: React.FC = () => {
     }, 50);
   };
 
-  const handleStartAnalysis = () => {
-    setIsReadyForAnalysis(true);
+  const handleStartAnalysis = async () => {
+    if (!selectedFile) return;
+
+    setIsUploading(true);
+    setUploadError(null);
+    setUploadResult(null);
+
+    try {
+      const result = await uploadRepositoryZip(selectedFile);
+      setUploadResult(result);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Upload failed due to a server error.';
+      setUploadError(errorMessage);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
@@ -220,28 +241,71 @@ export const UploadCard: React.FC = () => {
               </div>
             </div>
 
-            <button type="button" style={styles.changeFileBtn} onClick={handleChangeFile}>
+            <button type="button" style={styles.changeFileBtn} onClick={handleChangeFile} disabled={isUploading}>
               Change file
             </button>
           </div>
 
-          {!isReadyForAnalysis ? (
-            <div style={styles.actionRow}>
-              <button type="button" style={styles.startAnalysisBtn} onClick={handleStartAnalysis}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                  <polygon points="5 3 19 12 5 21 5 3" />
+          {/* Backend Upload Errors */}
+          {uploadError && (
+            <div role="alert" aria-live="polite" style={styles.errorBanner}>
+              <div style={styles.errorIconBox}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
                 </svg>
-                Start Analysis
+              </div>
+              <div style={styles.errorContent}>
+                <span style={styles.errorTitle}>Upload Error</span>
+                <span style={styles.errorMessage}>{uploadError}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Start Analysis Button / Uploading State / Upload Result */}
+          {!uploadResult ? (
+            <div style={styles.actionRow}>
+              <button
+                type="button"
+                style={{
+                  ...styles.startAnalysisBtn,
+                  ...(isUploading ? styles.btnDisabled : {}),
+                }}
+                onClick={handleStartAnalysis}
+                disabled={isUploading}
+              >
+                {isUploading ? (
+                  <>
+                    <span style={styles.spinnerDot} />
+                    Uploading repository archive...
+                  </>
+                ) : (
+                  <>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                      <polygon points="5 3 19 12 5 21 5 3" />
+                    </svg>
+                    Start Analysis
+                  </>
+                )}
               </button>
             </div>
           ) : (
-            <div role="status" aria-live="polite" style={styles.analysisReadyBanner}>
+            <div role="status" aria-live="polite" style={styles.analysisSuccessBanner}>
               <div style={styles.readyBannerHeader}>
-                <span style={styles.readyBadge}>Ready for analysis</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ color: 'var(--color-success)' }}>
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                <span style={styles.successBadge}>Backend Validated</span>
               </div>
-              <p style={styles.readyBannerText}>
-                Backend repository analysis will be connected in the next phase.
-              </p>
+              <p style={styles.readyBannerText}>{uploadResult.message}</p>
+              <div style={styles.resultMeta}>
+                <span>Filename: <strong>{uploadResult.filename}</strong></span>
+                <span>•</span>
+                <span>Size: <strong>{formatFileSize(uploadResult.size)}</strong></span>
+                <span>•</span>
+                <span>Status: <strong style={{ color: 'var(--color-success)' }}>{uploadResult.status}</strong></span>
+              </div>
             </div>
           )}
         </div>
@@ -452,27 +516,51 @@ const styles: Record<string, React.CSSProperties> = {
     border: 'none',
     cursor: 'pointer',
   },
-  analysisReadyBanner: {
+  btnDisabled: {
+    opacity: 0.7,
+    cursor: 'not-allowed',
+  },
+  spinnerDot: {
+    width: '14px',
+    height: '14px',
+    border: '2px solid #FFFFFF',
+    borderTopColor: 'transparent',
+    borderRadius: '50%',
+    display: 'inline-block',
+    animation: 'spin 1s linear infinite',
+  },
+  analysisSuccessBanner: {
     padding: '16px 20px',
-    backgroundColor: 'var(--color-primary-light)',
-    border: '1px solid var(--border-focus)',
+    backgroundColor: 'var(--color-success-bg)',
+    border: '1px solid #A7F3D0',
     borderRadius: 'var(--radius-md)',
     display: 'flex',
     flexDirection: 'column',
-    gap: '4px',
+    gap: '8px',
   },
   readyBannerHeader: {
     display: 'flex',
     alignItems: 'center',
+    gap: '6px',
   },
-  readyBadge: {
+  successBadge: {
     fontSize: '13px',
     fontWeight: 700,
-    color: 'var(--color-primary)',
+    color: 'var(--color-success)',
   },
   readyBannerText: {
     fontSize: '13.5px',
     color: 'var(--text-main)',
     lineHeight: '1.5',
+  },
+  resultMeta: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    fontSize: '12px',
+    color: 'var(--text-muted)',
+    flexWrap: 'wrap',
+    paddingTop: '4px',
+    borderTop: '1px solid rgba(16, 185, 129, 0.2)',
   },
 };

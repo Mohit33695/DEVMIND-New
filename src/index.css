@@ -158,3 +158,9 @@ button {
     transform: translateX(-100%);
   }
 }
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
