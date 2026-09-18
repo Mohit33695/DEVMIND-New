@@ -2,9 +2,19 @@ import type {
   RepositoryUploadResponse,
   RepositoryScanResult,
   RepositoryFileContentResponse,
+  RepositorySymbolsResponse,
+  SymbolItem,
+  FileSymbols,
 } from '@/types/repository';
 
-export type { RepositoryUploadResponse, RepositoryScanResult, RepositoryFileContentResponse };
+export type {
+  RepositoryUploadResponse,
+  RepositoryScanResult,
+  RepositoryFileContentResponse,
+  RepositorySymbolsResponse,
+  SymbolItem,
+  FileSymbols,
+};
 
 export interface HealthResponse {
   status: string;
@@ -91,4 +101,32 @@ export async function fetchFileContent(
 
   return response.json();
 }
+
+// 4. Repository Code Symbols GET request
+export async function fetchRepositorySymbols(
+  repoId: string
+): Promise<RepositorySymbolsResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/repositories/${repoId}/symbols`, {
+    method: 'GET',
+    headers: {
+      'Accept': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    let errorDetail = `Failed to load repository symbols (HTTP ${response.status})`;
+    try {
+      const errorJson = await response.json();
+      if (errorJson && errorJson.detail) {
+        errorDetail = typeof errorJson.detail === 'string' ? errorJson.detail : JSON.stringify(errorJson.detail);
+      }
+    } catch {
+      // Fallback if response isn't JSON
+    }
+    throw new Error(errorDetail);
+  }
+
+  return response.json();
+}
+
 

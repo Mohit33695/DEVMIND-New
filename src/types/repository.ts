@@ -26,6 +26,30 @@ export interface RepositoryFileContentResponse {
   encoding: string;
 }
 
+export type SymbolKind = 'function' | 'class' | 'method' | 'import';
+
+export interface SymbolItem {
+  name: string;
+  kind: SymbolKind;
+  file_path: string;
+  line_start: number;
+  line_end: number;
+  signature?: string;
+  docstring?: string;
+}
+
+export interface FileSymbols {
+  file_path: string;
+  language: string;
+  symbols: SymbolItem[];
+}
+
+export interface RepositorySymbolsResponse {
+  repo_id: string;
+  total_symbols: number;
+  file_symbols: FileSymbols[];
+}
+
 export interface FileNode {
   type: 'file';
   name: string;
@@ -41,4 +65,5 @@ export interface FolderNode {
 }
 
 export type TreeNode = FileNode | FolderNode;
+
 

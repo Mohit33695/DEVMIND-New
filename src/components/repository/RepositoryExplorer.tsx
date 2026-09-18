@@ -1,8 +1,15 @@
-import React, { useState, useMemo } from 'react';
-import type { RepositoryScanResult, TreeNode, RepositoryFileContentResponse } from '@/types/repository';
+import React, { useState, useEffect, useMemo } from 'react';
+import type {
+  RepositoryScanResult,
+  TreeNode,
+  RepositoryFileContentResponse,
+  RepositorySymbolsResponse,
+  SymbolItem,
+} from '@/types/repository';
 import { buildFileTree } from '@/utils/fileTreeBuilder';
-import { fetchFileContent } from '@/api/client';
+import { fetchFileContent, fetchRepositorySymbols } from '@/api/client';
 import { FileViewer } from '@/components/repository/FileViewer';
+import { SymbolPanel } from '@/components/repository/SymbolPanel';
 
 interface RepositoryExplorerProps {
   scanResult: RepositoryScanResult;
@@ -40,6 +47,42 @@ export const RepositoryExplorer: React.FC<RepositoryExplorerProps> = ({
   const [isFileLoading, setIsFileLoading] = useState<boolean>(false);
   const [fileError, setFileError] = useState<string | null>(null);
 
+  // Repository AST Symbols state
+  const [repositorySymbols, setRepositorySymbols] = useState<RepositorySymbolsResponse | null>(null);
+  const [isSymbolsLoading, setIsSymbolsLoading] = useState<boolean>(false);
+  const [symbolsError, setSymbolsError] = useState<string | null>(null);
+
+  // Fetch repository symbols ONCE when repoId is available
+  useEffect(() => {
+    if (!repoId) return;
+
+    let isMounted = true;
+    setIsSymbolsLoading(true);
+    setSymbolsError(null);
+
+    fetchRepositorySymbols(repoId)
+      .then((data) => {
+        if (isMounted) {
+          setRepositorySymbols(data);
+        }
+      })
+      .catch((err: unknown) => {
+        if (isMounted) {
+          const msg = err instanceof Error ? err.message : 'Failed to fetch repository symbols.';
+          setSymbolsError(msg);
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsSymbolsLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [repoId]);
+
   const toggleFolder = (path: string) => {
     setExpandedPaths((prev) => ({
       ...prev,
@@ -75,6 +118,15 @@ export const RepositoryExplorer: React.FC<RepositoryExplorerProps> = ({
     return Object.entries(scanResult.detected_languages || {}).sort((a, b) => b[1] - a[1]);
   }, [scanResult.detected_languages]);
 
+  // Filter symbols for the currently selected file
+  const selectedFileSymbols = useMemo<SymbolItem[]>(() => {
+    if (!selectedFilePath || !repositorySymbols) return [];
+    const fileMatch = repositorySymbols.file_symbols.find(
+      (f) => f.file_path === selectedFilePath
+    );
+    return fileMatch ? fileMatch.symbols : [];
+  }, [selectedFilePath, repositorySymbols]);
+
   return (
     <div style={styles.explorerContainer}>
       {/* 1. Repository Scan Summary Bar */}
@@ -91,6 +143,16 @@ export const RepositoryExplorer: React.FC<RepositoryExplorerProps> = ({
             <span style={styles.metricCount}>{scanResult.total_files}</span>
             <span style={styles.metricLabel}>{scanResult.total_files === 1 ? 'file' : 'files'}</span>
           </div>
+
+          {/* Real Backend Extracted Symbol Count Metric */}
+          {repositorySymbols && (
+            <div style={styles.metricBadge}>
+              <span style={styles.metricCount}>{repositorySymbols.total_symbols}</span>
+              <span style={styles.metricLabel}>
+                {repositorySymbols.total_symbols === 1 ? 'symbol' : 'symbols'}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Detected Languages Tags */}
@@ -105,7 +167,7 @@ export const RepositoryExplorer: React.FC<RepositoryExplorerProps> = ({
         </div>
       </div>
 
-      {/* 2. Side-by-Side Split View: File Tree (Left) + File Viewer (Right) */}
+      {/* 2. Side-by-Side Split View: File Tree (Left) + File Viewer & Symbol Panel (Right) */}
       <div style={styles.splitLayout}>
         {/* Left Column: File Tree Navigation */}
         <div style={styles.treeBox}>
@@ -138,8 +200,16 @@ export const RepositoryExplorer: React.FC<RepositoryExplorerProps> = ({
           </div>
         </div>
 
-        {/* Right Column: Code File Viewer */}
+        {/* Right Column: Code Symbols Panel & Source File Viewer */}
         <div style={styles.viewerBox}>
+          {selectedFilePath && (
+            <SymbolPanel
+              symbols={selectedFileSymbols}
+              isLoading={isSymbolsLoading}
+              error={symbolsError}
+            />
+          )}
+
           <FileViewer
             filePath={selectedFilePath}
             contentResponse={selectedFileContent}
@@ -418,6 +488,8 @@ const styles: Record<string, React.CSSProperties> = {
   viewerBox: {
     flex: 1,
     minWidth: 0,
+    display: 'flex',
+    flexDirection: 'column',
   },
   treeHeader: {
     display: 'flex',

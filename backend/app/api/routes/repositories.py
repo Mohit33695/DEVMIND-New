@@ -12,6 +12,8 @@ from fastapi import APIRouter, File, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel
 
 from app.schemas.scanner import RepositoryFileContentResponse, RepositoryScanResult
+from app.schemas.symbols import RepositorySymbolsResponse
+from app.services.parser.service import CodeIntelligenceService
 from app.services.scanner import RepositoryScanner
 from app.services.storage import (
     BinaryFileError,
@@ -179,6 +181,35 @@ async def get_repository_file_content(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error reading repository file content: {str(exc)}",
         )
+
+
+@router.get(
+    "/repositories/{repo_id}/symbols",
+    response_model=RepositorySymbolsResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def get_repository_symbols(repo_id: str) -> RepositorySymbolsResponse:
+    """
+    GET /api/repositories/{repo_id}/symbols
+
+    Statically inspects stored repository Python (.py) files and extracts code symbols
+    (functions, async functions, classes, methods, and imports) without executing code.
+
+    Returns symbol metadata grouped by file.
+    """
+    try:
+        return CodeIntelligenceService.extract_repository_symbols(repo_id)
+    except RepositoryNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error extracting repository symbols: {str(exc)}",
+        )
+
 
 
 
