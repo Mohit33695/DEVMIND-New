@@ -7,8 +7,12 @@ Validates file format, structure, and size constraints without executing code or
 """
 
 import zipfile
+from typing import Optional
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 from pydantic import BaseModel
+
+from app.schemas.scanner import RepositoryScanResult
+from app.services.scanner import RepositoryScanner, ZipPathTraversalError
 
 router = APIRouter()
 
@@ -21,6 +25,7 @@ class RepositoryUploadResponse(BaseModel):
     size: int
     status: str
     message: str
+    scan_result: Optional[RepositoryScanResult] = None
 
 
 @router.post(
@@ -39,8 +44,9 @@ async def upload_repository_zip(
     1. File extension is .zip
     2. File size does not exceed 200 MB
     3. Valid ZIP header structure via zipfile inspection
+    4. Safe zip extraction & repository scan without executing code
 
-    Returns metadata and validation status without executing or persisting files.
+    Returns metadata and scan result summary.
     """
     filename = file.filename or "archive.zip"
 
@@ -84,9 +90,25 @@ async def upload_repository_zip(
             detail="Unable to read or parse the uploaded .zip archive.",
         )
 
+    # 4. Safely scan repository archive
+    try:
+        scan_result = RepositoryScanner.scan_zip_file(file.file)
+    except ZipPathTraversalError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to scan uploaded repository archive: {str(exc)}",
+        )
+
     return RepositoryUploadResponse(
         filename=filename,
         size=file_size,
         status="validated",
-        message="Repository archive successfully uploaded and validated by the backend server.",
+        message="Repository archive successfully uploaded, validated, and scanned.",
+        scan_result=scan_result,
     )
+
