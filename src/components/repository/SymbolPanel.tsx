@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import type { SymbolItem, SymbolKind } from '@/types/repository';
 
 interface SymbolPanelProps {
@@ -13,6 +13,11 @@ export const SymbolPanel: React.FC<SymbolPanelProps> = ({
   error = null,
 }) => {
   const [activeTab, setActiveTab] = useState<'all' | SymbolKind>('all');
+
+  // Reset active filter tab to 'all' whenever symbols array prop changes (e.g. selected file switches)
+  useEffect(() => {
+    setActiveTab('all');
+  }, [symbols]);
 
   // Categorize symbols
   const categorized = useMemo(() => {
