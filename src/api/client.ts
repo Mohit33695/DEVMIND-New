@@ -1,6 +1,10 @@
-import type { RepositoryUploadResponse, RepositoryScanResult } from '@/types/repository';
+import type {
+  RepositoryUploadResponse,
+  RepositoryScanResult,
+  RepositoryFileContentResponse,
+} from '@/types/repository';
 
-export type { RepositoryUploadResponse, RepositoryScanResult };
+export type { RepositoryUploadResponse, RepositoryScanResult, RepositoryFileContentResponse };
 
 export interface HealthResponse {
   status: string;
@@ -55,3 +59,36 @@ export async function uploadRepositoryZip(file: File): Promise<RepositoryUploadR
 
   return response.json();
 }
+
+// 3. Repository File Content GET request
+export async function fetchFileContent(
+  repoId: string,
+  filePath: string
+): Promise<RepositoryFileContentResponse> {
+  const encodedPath = encodeURIComponent(filePath);
+  const response = await fetch(
+    `${API_BASE_URL}/api/repositories/${repoId}/files/content?path=${encodedPath}`,
+    {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      },
+    }
+  );
+
+  if (!response.ok) {
+    let errorDetail = `Failed to load file content (HTTP ${response.status})`;
+    try {
+      const errorJson = await response.json();
+      if (errorJson && errorJson.detail) {
+        errorDetail = typeof errorJson.detail === 'string' ? errorJson.detail : JSON.stringify(errorJson.detail);
+      }
+    } catch {
+      // Fallback if response isn't JSON
+    }
+    throw new Error(errorDetail);
+  }
+
+  return response.json();
+}
+

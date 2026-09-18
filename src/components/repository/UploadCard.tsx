@@ -315,6 +315,7 @@ export const UploadCard: React.FC = () => {
                 <RepositoryExplorer
                   scanResult={uploadResult.scan_result}
                   filename={uploadResult.filename}
+                  repoId={uploadResult.repo_id}
                 />
               )}
             </>

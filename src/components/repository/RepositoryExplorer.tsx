@@ -1,13 +1,20 @@
 import React, { useState, useMemo } from 'react';
-import type { RepositoryScanResult, TreeNode } from '@/types/repository';
+import type { RepositoryScanResult, TreeNode, RepositoryFileContentResponse } from '@/types/repository';
 import { buildFileTree } from '@/utils/fileTreeBuilder';
+import { fetchFileContent } from '@/api/client';
+import { FileViewer } from '@/components/repository/FileViewer';
 
 interface RepositoryExplorerProps {
   scanResult: RepositoryScanResult;
   filename?: string;
+  repoId?: string;
 }
 
-export const RepositoryExplorer: React.FC<RepositoryExplorerProps> = ({ scanResult, filename }) => {
+export const RepositoryExplorer: React.FC<RepositoryExplorerProps> = ({
+  scanResult,
+  filename,
+  repoId,
+}) => {
   const rootFolderName = filename ? filename.replace(/\.zip$/i, '') : 'repository';
 
   // Build hierarchical file tree from flat path list
@@ -27,14 +34,40 @@ export const RepositoryExplorer: React.FC<RepositoryExplorerProps> = ({ scanResu
     return initialExpanded;
   });
 
-  // Selected file visual state
+  // Selected file & content state
   const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
+  const [selectedFileContent, setSelectedFileContent] = useState<RepositoryFileContentResponse | null>(null);
+  const [isFileLoading, setIsFileLoading] = useState<boolean>(false);
+  const [fileError, setFileError] = useState<string | null>(null);
 
   const toggleFolder = (path: string) => {
     setExpandedPaths((prev) => ({
       ...prev,
       [path]: !prev[path],
     }));
+  };
+
+  // Handle file selection and fetch real source content from backend
+  const handleSelectFile = async (path: string) => {
+    setSelectedFilePath(path);
+    setSelectedFileContent(null);
+    setFileError(null);
+
+    if (!repoId) {
+      setFileError('Repository ID is missing. Please re-upload the archive.');
+      return;
+    }
+
+    setIsFileLoading(true);
+    try {
+      const contentData = await fetchFileContent(repoId, path);
+      setSelectedFileContent(contentData);
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to retrieve file content.';
+      setFileError(errorMsg);
+    } finally {
+      setIsFileLoading(false);
+    }
   };
 
   // Sort detected languages by file count descending
@@ -72,34 +105,47 @@ export const RepositoryExplorer: React.FC<RepositoryExplorerProps> = ({ scanResu
         </div>
       </div>
 
-      {/* 2. File Tree Container */}
-      <div style={styles.treeBox}>
-        <div style={styles.treeHeader}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <line x1="8" y1="6" x2="21" y2="6" />
-            <line x1="8" y1="12" x2="21" y2="12" />
-            <line x1="8" y1="18" x2="21" y2="18" />
-            <line x1="3" y1="6" x2="3.01" y2="6" />
-            <line x1="3" y1="12" x2="3.01" y2="12" />
-            <line x1="3" y1="18" x2="3.01" y2="18" />
-          </svg>
-          <span>Repository File Structure</span>
+      {/* 2. Side-by-Side Split View: File Tree (Left) + File Viewer (Right) */}
+      <div style={styles.splitLayout}>
+        {/* Left Column: File Tree Navigation */}
+        <div style={styles.treeBox}>
+          <div style={styles.treeHeader}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="8" y1="6" x2="21" y2="6" />
+              <line x1="8" y1="12" x2="21" y2="12" />
+              <line x1="8" y1="18" x2="21" y2="18" />
+              <line x1="3" y1="6" x2="3.01" y2="6" />
+              <line x1="3" y1="12" x2="3.01" y2="12" />
+              <line x1="3" y1="18" x2="3.01" y2="18" />
+            </svg>
+            <span>Repository Files</span>
+          </div>
+
+          <div style={styles.treeContent}>
+            {rootNode.children.length === 0 ? (
+              <div style={styles.emptyTree}>No files discovered in repository scan.</div>
+            ) : (
+              <TreeNodeView
+                node={rootNode}
+                depth={0}
+                expandedPaths={expandedPaths}
+                onToggleFolder={toggleFolder}
+                selectedFilePath={selectedFilePath}
+                onSelectFile={handleSelectFile}
+                isRoot={true}
+              />
+            )}
+          </div>
         </div>
 
-        <div style={styles.treeContent}>
-          {rootNode.children.length === 0 ? (
-            <div style={styles.emptyTree}>No files discovered in repository scan.</div>
-          ) : (
-            <TreeNodeView
-              node={rootNode}
-              depth={0}
-              expandedPaths={expandedPaths}
-              onToggleFolder={toggleFolder}
-              selectedFilePath={selectedFilePath}
-              onSelectFile={setSelectedFilePath}
-              isRoot={true}
-            />
-          )}
+        {/* Right Column: Code File Viewer */}
+        <div style={styles.viewerBox}>
+          <FileViewer
+            filePath={selectedFilePath}
+            contentResponse={selectedFileContent}
+            isLoading={isFileLoading}
+            error={fileError}
+          />
         </div>
       </div>
     </div>
@@ -355,11 +401,23 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'var(--text-muted)',
     fontSize: '10.5px',
   },
+  splitLayout: {
+    display: 'flex',
+    gap: '16px',
+    alignItems: 'stretch',
+  },
   treeBox: {
+    flex: '0 0 320px',
     backgroundColor: 'var(--bg-app)',
     border: '1px solid var(--border-default)',
     borderRadius: 'var(--radius-md)',
     overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  viewerBox: {
+    flex: 1,
+    minWidth: 0,
   },
   treeHeader: {
     display: 'flex',
@@ -378,8 +436,9 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '8px 0',
     fontFamily: 'monospace, sans-serif',
     fontSize: '13px',
-    maxHeight: '400px',
+    maxHeight: '520px',
     overflowY: 'auto',
+    flex: 1,
   },
   emptyTree: {
     padding: '20px',

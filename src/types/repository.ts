@@ -14,7 +14,16 @@ export interface RepositoryUploadResponse {
   size: number;
   status: string;
   message: string;
+  repo_id?: string;
   scan_result?: RepositoryScanResult;
+}
+
+export interface RepositoryFileContentResponse {
+  repo_id: string;
+  path: string;
+  size: number;
+  content: string;
+  encoding: string;
 }
 
 export interface FileNode {
@@ -32,3 +41,4 @@ export interface FolderNode {
 }
 
 export type TreeNode = FileNode | FolderNode;
+
