@@ -1,6 +1,8 @@
 import React, { useState, useRef } from 'react';
 import type { DragEvent, ChangeEvent, KeyboardEvent } from 'react';
 import { uploadRepositoryZip, type RepositoryUploadResponse } from '@/api/client';
+import { RepositoryExplorer } from '@/components/repository/RepositoryExplorer';
+
 
 const MAX_FILE_SIZE_BYTES = 200 * 1024 * 1024; // 200 MB
 
@@ -291,22 +293,31 @@ export const UploadCard: React.FC = () => {
               </button>
             </div>
           ) : (
-            <div role="status" aria-live="polite" style={styles.analysisSuccessBanner}>
-              <div style={styles.readyBannerHeader}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ color: 'var(--color-success)' }}>
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-                <span style={styles.successBadge}>Backend Validated</span>
+            <>
+              <div role="status" aria-live="polite" style={styles.analysisSuccessBanner}>
+                <div style={styles.readyBannerHeader}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ color: 'var(--color-success)' }}>
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  <span style={styles.successBadge}>Backend Validated</span>
+                </div>
+                <p style={styles.readyBannerText}>{uploadResult.message}</p>
+                <div style={styles.resultMeta}>
+                  <span>Filename: <strong>{uploadResult.filename}</strong></span>
+                  <span>•</span>
+                  <span>Size: <strong>{formatFileSize(uploadResult.size)}</strong></span>
+                  <span>•</span>
+                  <span>Status: <strong style={{ color: 'var(--color-success)' }}>{uploadResult.status}</strong></span>
+                </div>
               </div>
-              <p style={styles.readyBannerText}>{uploadResult.message}</p>
-              <div style={styles.resultMeta}>
-                <span>Filename: <strong>{uploadResult.filename}</strong></span>
-                <span>•</span>
-                <span>Size: <strong>{formatFileSize(uploadResult.size)}</strong></span>
-                <span>•</span>
-                <span>Status: <strong style={{ color: 'var(--color-success)' }}>{uploadResult.status}</strong></span>
-              </div>
-            </div>
+
+              {uploadResult.scan_result && (
+                <RepositoryExplorer
+                  scanResult={uploadResult.scan_result}
+                  filename={uploadResult.filename}
+                />
+              )}
+            </>
           )}
         </div>
       )}

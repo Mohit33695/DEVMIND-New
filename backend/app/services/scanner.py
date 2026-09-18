@@ -116,6 +116,59 @@ class RepositoryScanner:
         return EXTENSION_LANGUAGE_MAP.get(ext, "Other")
 
     @classmethod
+    def scan_extracted_directory(cls, target_dir: str) -> RepositoryScanResult:
+        """
+        Recursively inspects an already extracted repository directory on disk.
+
+        Args:
+            target_dir: Path to extracted repository directory.
+
+        Returns:
+            RepositoryScanResult: Extracted metadata including file counts, languages, and structure.
+        """
+        total_files = 0
+        detected_languages: Dict[str, int] = {}
+        directories: Set[str] = set()
+        scanned_files: List[str] = []
+
+        for root, dirs, files in os.walk(target_dir):
+            # Filter ignored directory names in-place so os.walk skips them
+            dirs[:] = [
+                d for d in dirs if d not in IGNORED_DIRECTORIES and not d.startswith(".")
+            ]
+
+            rel_root = os.path.relpath(root, target_dir)
+            if rel_root != ".":
+                # Normalize path separators for consistent output
+                norm_dir = rel_root.replace("\\", "/")
+                directories.add(norm_dir)
+
+            for file in files:
+                # Skip hidden system/git files if any
+                if file.startswith(".git"):
+                    continue
+
+                rel_filepath = (
+                    file
+                    if rel_root == "."
+                    else os.path.join(rel_root, file)
+                ).replace("\\", "/")
+
+                # Detect programming language
+                lang = cls.detect_language(file)
+                detected_languages[lang] = detected_languages.get(lang, 0) + 1
+
+                total_files += 1
+                scanned_files.append(rel_filepath)
+
+        return RepositoryScanResult(
+            total_files=total_files,
+            detected_languages=detected_languages,
+            directories=sorted(list(directories)),
+            scanned_files=sorted(scanned_files),
+        )
+
+    @classmethod
     def scan_zip_file(
         cls, file_source: Union[BinaryIO, bytes, str]
     ) -> RepositoryScanResult:
@@ -151,45 +204,6 @@ class RepositoryScanner:
                 # 2. Extract contents into temp directory safely
                 zf.extractall(temp_dir)
 
-            # 3. Recursively inspect extracted files
-            total_files = 0
-            detected_languages: Dict[str, int] = {}
-            directories: Set[str] = set()
-            scanned_files: List[str] = []
+            # 3. Scan extracted temp directory
+            return cls.scan_extracted_directory(temp_dir)
 
-            for root, dirs, files in os.walk(temp_dir):
-                # Filter ignored directory names in-place so os.walk skips them
-                dirs[:] = [
-                    d for d in dirs if d not in IGNORED_DIRECTORIES and not d.startswith(".")
-                ]
-
-                rel_root = os.path.relpath(root, temp_dir)
-                if rel_root != ".":
-                    # Normalize path separators for consistent output
-                    norm_dir = rel_root.replace("\\", "/")
-                    directories.add(norm_dir)
-
-                for file in files:
-                    # Skip hidden system/git files if any
-                    if file.startswith(".git"):
-                        continue
-
-                    rel_filepath = (
-                        file
-                        if rel_root == "."
-                        else os.path.join(rel_root, file)
-                    ).replace("\\", "/")
-
-                    # Detect programming language
-                    lang = cls.detect_language(file)
-                    detected_languages[lang] = detected_languages.get(lang, 0) + 1
-
-                    total_files += 1
-                    scanned_files.append(rel_filepath)
-
-            return RepositoryScanResult(
-                total_files=total_files,
-                detected_languages=detected_languages,
-                directories=sorted(list(directories)),
-                scanned_files=sorted(scanned_files),
-            )
