@@ -13,6 +13,8 @@ from typing import Dict, Optional
 
 from app.services.parser.base import BaseLanguageParser
 from app.services.parser.python_parser import PythonParser
+from app.services.parser.tree_sitter_go import GoTreeSitterParser
+from app.services.parser.tree_sitter_java import JavaTreeSitterParser
 from app.services.parser.tree_sitter_ts import TypeScriptTreeSitterParser
 
 
@@ -22,6 +24,8 @@ class ParserRegistry:
     def __init__(self):
         self._python_parser = PythonParser()
         self._ts_parser = TypeScriptTreeSitterParser()
+        self._java_parser = JavaTreeSitterParser()
+        self._go_parser = GoTreeSitterParser()
 
         self._registry: Dict[str, BaseLanguageParser] = {
             ".py": self._python_parser,
@@ -29,6 +33,8 @@ class ParserRegistry:
             ".jsx": self._ts_parser,
             ".ts": self._ts_parser,
             ".tsx": self._ts_parser,
+            ".java": self._java_parser,
+            ".go": self._go_parser,
         }
 
     def get_parser_for_file(self, file_path: str) -> Optional[BaseLanguageParser]:

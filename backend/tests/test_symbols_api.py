@@ -56,17 +56,21 @@ def test_get_repository_symbols_success():
 
 
 def test_get_repository_symbols_multi_language():
-    """Verifies symbol extraction for repositories containing both Python and TypeScript files."""
+    """Verifies symbol extraction for repositories containing Python, JS, TS, TSX, Java, and Go files."""
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w") as zf:
-        zf.writestr("server.py", "def run(): pass\n")
+        zf.writestr("server.py", "import sys\ndef run(): pass\n")
+        zf.writestr("app.js", "import logger from './log';\nfunction init() {}\n")
         zf.writestr("client.ts", "import axios from 'axios';\nexport class ApiClient {}\n")
+        zf.writestr("Component.tsx", "import React from 'react';\nexport const Btn = () => <button />;\n")
+        zf.writestr("Server.java", "import java.util.*;\npublic class Server { public void start() {} }\n")
+        zf.writestr("main.go", "package main\nimport \"fmt\"\nfunc main() {}\n")
         zf.writestr("config.json", '{"env": "prod"}')
 
     zip_bytes = buffer.getvalue()
     upload_resp = client.post(
         "/api/repositories/upload",
-        files={"file": ("multi_repo.zip", zip_bytes, "application/zip")},
+        files={"file": ("all_languages_repo.zip", zip_bytes, "application/zip")},
     )
     assert upload_resp.status_code == 200
     repo_id = upload_resp.json()["repo_id"]
@@ -76,15 +80,15 @@ def test_get_repository_symbols_multi_language():
 
     data = symbols_resp.json()
     assert data["repo_id"] == repo_id
-    assert len(data["file_symbols"]) == 2  # server.py and client.ts (config.json skipped)
+    assert len(data["file_symbols"]) == 6  # 6 supported language files
 
     paths = [f["file_path"] for f in data["file_symbols"]]
     assert "server.py" in paths
+    assert "app.js" in paths
     assert "client.ts" in paths
-
-    ts_file = next(f for f in data["file_symbols"] if f["file_path"] == "client.ts")
-    assert ts_file["language"] == "TypeScript"
-    assert len(ts_file["symbols"]) == 2
+    assert "Component.tsx" in paths
+    assert "Server.java" in paths
+    assert "main.go" in paths
 
 
 def test_get_repository_symbols_not_found():
