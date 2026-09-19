@@ -7,6 +7,11 @@ interface SymbolPanelProps {
   error?: string | null;
 }
 
+const formatParameters = (params: string[]): string => {
+  if (params.length <= 3) return params.join(', ');
+  return `${params.slice(0, 3).join(', ')}, +${params.length - 3} more`;
+};
+
 export const SymbolPanel: React.FC<SymbolPanelProps> = ({
   symbols,
   isLoading = false,
@@ -156,31 +161,66 @@ export const SymbolPanel: React.FC<SymbolPanelProps> = ({
 
       {/* 2. Symbols Grid / List */}
       <div key={activeTab} ref={gridRef} style={styles.symbolsGrid}>
-        {filteredSymbols.map((item, index) => (
-          <div key={`${item.name}-${index}`} style={styles.symbolCard}>
-            <div style={styles.cardHeader}>
-              <span style={{ ...styles.kindBadge, ...getKindBadgeStyle(item.kind) }}>
-                {item.kind}
-              </span>
-              <span style={styles.symbolName}>{item.name}</span>
-              <span style={styles.lineRange}>
-                L{item.line_start}{item.line_start !== item.line_end ? `-L${item.line_end}` : ''}
-              </span>
+        {filteredSymbols.map((item, index) => {
+          const hasParameters = Array.isArray(item.parameters) && item.parameters.length > 0;
+          const hasReturnType = Boolean(item.return_type && item.return_type.trim());
+          const hasMetadata = hasParameters || hasReturnType;
+
+          return (
+            <div key={`${item.name}-${index}`} style={styles.symbolCard}>
+              <div style={styles.cardHeader}>
+                <span style={{ ...styles.kindBadge, ...getKindBadgeStyle(item.kind) }}>
+                  {item.kind}
+                </span>
+
+                {item.visibility && (
+                  <span style={styles.visibilityBadge}>
+                    {item.visibility}
+                  </span>
+                )}
+
+                <span style={styles.symbolName}>
+                  {item.parent_symbol && (
+                    <span style={styles.parentSymbol}>{item.parent_symbol} . </span>
+                  )}
+                  {item.name}
+                </span>
+
+                <span style={styles.lineRange}>
+                  L{item.line_start}{item.line_start !== item.line_end ? `-L${item.line_end}` : ''}
+                </span>
+              </div>
+
+              {hasMetadata && (
+                <div style={styles.metadataRow}>
+                  {hasParameters && (
+                    <span style={styles.paramPill}>
+                      ({formatParameters(item.parameters!)})
+                    </span>
+                  )}
+
+                  {hasReturnType && (
+                    <span style={styles.returnTypePill}>
+                      → {item.return_type}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {item.signature && (
+                <div style={styles.signatureRow}>
+                  <code>{item.signature}</code>
+                </div>
+              )}
+
+              {item.docstring && item.docstring.trim() && (
+                <div style={styles.docstringRow}>
+                  <span style={styles.docstringText}>{item.docstring}</span>
+                </div>
+              )}
             </div>
-
-            {item.signature && (
-              <div style={styles.signatureRow}>
-                <code>{item.signature}</code>
-              </div>
-            )}
-
-            {item.docstring && (
-              <div style={styles.docstringRow}>
-                <span style={styles.docstringText}>{item.docstring}</span>
-              </div>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -286,7 +326,8 @@ const styles: Record<string, React.CSSProperties> = {
   cardHeader: {
     display: 'flex',
     alignItems: 'center',
-    gap: '8px',
+    gap: '6px',
+    flexWrap: 'wrap',
   },
   kindBadge: {
     fontSize: '10px',
@@ -311,10 +352,25 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#10B981',
     backgroundColor: '#ECFDF5',
   },
+  visibilityBadge: {
+    fontSize: '9.5px',
+    fontWeight: 700,
+    textTransform: 'uppercase',
+    padding: '1px 5px',
+    borderRadius: 'var(--radius-sm)',
+    border: '1px solid var(--border-default)',
+    color: 'var(--text-muted)',
+  },
+  parentSymbol: {
+    fontSize: '11.5px',
+    color: 'var(--text-subtle)',
+    fontWeight: 500,
+  },
   symbolName: {
     fontSize: '12.5px',
     fontWeight: 600,
     color: 'var(--text-main)',
+    wordBreak: 'break-word',
   },
   lineRange: {
     fontSize: '11px',
@@ -322,10 +378,36 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'var(--text-subtle)',
     marginLeft: 'auto',
   },
+  metadataRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    flexWrap: 'wrap',
+    marginTop: '2px',
+  },
+  paramPill: {
+    fontSize: '10.5px',
+    fontFamily: 'monospace',
+    padding: '1px 6px',
+    borderRadius: 'var(--radius-sm)',
+    color: 'var(--text-muted)',
+    backgroundColor: 'var(--bg-subtle)',
+    wordBreak: 'break-word',
+  },
+  returnTypePill: {
+    fontSize: '10.5px',
+    fontFamily: 'monospace',
+    padding: '1px 6px',
+    borderRadius: 'var(--radius-sm)',
+    color: 'var(--color-primary)',
+    backgroundColor: 'var(--color-primary-light)',
+    wordBreak: 'break-word',
+  },
   signatureRow: {
     fontSize: '11.5px',
     fontFamily: 'monospace',
     color: 'var(--text-muted)',
+    wordBreak: 'break-all',
   },
   docstringRow: {
     fontSize: '11.5px',
@@ -339,3 +421,4 @@ const styles: Record<string, React.CSSProperties> = {
     overflow: 'hidden',
   },
 };
+

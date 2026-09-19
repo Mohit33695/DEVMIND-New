@@ -36,6 +36,10 @@ export interface SymbolItem {
   line_end: number;
   signature?: string;
   docstring?: string;
+  parent_symbol?: string | null;
+  parameters?: string[] | null;
+  return_type?: string | null;
+  visibility?: string | null;
 }
 
 export interface FileSymbols {
