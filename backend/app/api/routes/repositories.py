@@ -12,10 +12,12 @@ from fastapi import APIRouter, File, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel
 
 from app.schemas.dependencies import RepositoryDependenciesResponse
+from app.schemas.documentation import RepositoryDocumentationResponse
 from app.schemas.scanner import RepositoryFileContentResponse, RepositoryScanResult
 from app.schemas.search import RepositorySearchResponse
 from app.schemas.symbols import RepositorySymbolsResponse
 from app.services.dependency import CodeDependencyService
+from app.services.documentation import RepositoryDocumentationService
 from app.services.parser.service import CodeIntelligenceService
 from app.services.scanner import RepositoryScanner
 from app.services.search import CodeSearchService
@@ -281,3 +283,30 @@ async def get_repository_dependencies(repo_id: str) -> RepositoryDependenciesRes
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error analyzing repository dependencies: {str(exc)}",
         )
+
+
+@router.get(
+    "/repositories/{repo_id}/documentation",
+    response_model=RepositoryDocumentationResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def get_repository_documentation(repo_id: str) -> RepositoryDocumentationResponse:
+    """
+    GET /api/repositories/{repo_id}/documentation
+
+    Aggregates repository scan data, symbol metadata, docstrings, dependency relationships,
+    and README content into a deterministic repository documentation object.
+    """
+    try:
+        return RepositoryDocumentationService.generate_documentation(repo_id)
+    except RepositoryNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error generating repository documentation: {str(exc)}",
+        )
+

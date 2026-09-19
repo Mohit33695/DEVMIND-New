@@ -118,6 +118,41 @@ export interface RepositoryDependenciesResponse {
   dependencies: DependencyItem[];
 }
 
+export interface ModuleDocItem {
+  file_path: string;
+  language: string;
+  summary_docstring?: string | null;
+  total_symbols: number;
+  public_symbols_count: number;
+  symbols: SymbolItem[];
+  imports_count: number;
+  imported_by_count: number;
+}
+
+export interface OverviewDocSummary {
+  repo_id: string;
+  total_files: number;
+  total_symbols: number;
+  detected_languages: Record<string, number>;
+  readme_file_path?: string | null;
+  readme_content?: string | null;
+}
+
+export interface ArchitectureDocSummary {
+  total_internal_dependencies: number;
+  external_packages: string[];
+  has_circular_dependencies: boolean;
+  circular_cycles_count: number;
+}
+
+export interface RepositoryDocumentationResponse {
+  repo_id: string;
+  overview: OverviewDocSummary;
+  architecture: ArchitectureDocSummary;
+  modules: ModuleDocItem[];
+}
+
+
 
 
 

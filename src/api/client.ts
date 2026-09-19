@@ -12,6 +12,10 @@ import type {
   RepositoryDependenciesResponse,
   DependencyType,
   ResolutionStatus,
+  RepositoryDocumentationResponse,
+  ModuleDocItem,
+  OverviewDocSummary,
+  ArchitectureDocSummary,
 } from '@/types/repository';
 
 export type {
@@ -28,6 +32,10 @@ export type {
   RepositoryDependenciesResponse,
   DependencyType,
   ResolutionStatus,
+  RepositoryDocumentationResponse,
+  ModuleDocItem,
+  OverviewDocSummary,
+  ArchitectureDocSummary,
 };
 
 export interface HealthResponse {
@@ -216,6 +224,37 @@ export async function fetchRepositoryDependencies(
 
   return response.json();
 }
+
+// 7. Repository Documentation GET request
+export async function fetchRepositoryDocumentation(
+  repoId: string
+): Promise<RepositoryDocumentationResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/repositories/${repoId}/documentation`,
+    {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      },
+    }
+  );
+
+  if (!response.ok) {
+    let errorDetail = `Failed to load repository documentation (HTTP ${response.status})`;
+    try {
+      const errorJson = await response.json();
+      if (errorJson && errorJson.detail) {
+        errorDetail = typeof errorJson.detail === 'string' ? errorJson.detail : JSON.stringify(errorJson.detail);
+      }
+    } catch {
+      // Fallback if response body isn't JSON
+    }
+    throw new Error(errorDetail);
+  }
+
+  return response.json();
+}
+
 
 
 
