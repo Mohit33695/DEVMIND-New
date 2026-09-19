@@ -130,6 +130,9 @@ export const UploadCard: React.FC = () => {
     try {
       const result = await uploadRepositoryZip(selectedFile);
       setUploadResult(result);
+      if (result.repo_id) {
+        sessionStorage.setItem('devmind_active_repo_id', result.repo_id);
+      }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Upload failed due to a server error.';
       setUploadError(errorMessage);

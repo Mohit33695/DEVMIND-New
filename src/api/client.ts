@@ -8,6 +8,10 @@ import type {
   SearchResultItem,
   RepositorySearchResponse,
   SearchOptions,
+  DependencyItem,
+  RepositoryDependenciesResponse,
+  DependencyType,
+  ResolutionStatus,
 } from '@/types/repository';
 
 export type {
@@ -20,6 +24,10 @@ export type {
   SearchResultItem,
   RepositorySearchResponse,
   SearchOptions,
+  DependencyItem,
+  RepositoryDependenciesResponse,
+  DependencyType,
+  ResolutionStatus,
 };
 
 export interface HealthResponse {
@@ -178,6 +186,37 @@ export async function searchRepositoryCode(
 
   return response.json();
 }
+
+// 6. Repository Dependencies GET request
+export async function fetchRepositoryDependencies(
+  repoId: string
+): Promise<RepositoryDependenciesResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/repositories/${repoId}/dependencies`,
+    {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      },
+    }
+  );
+
+  if (!response.ok) {
+    let errorDetail = `Failed to load repository dependencies (HTTP ${response.status})`;
+    try {
+      const errorJson = await response.json();
+      if (errorJson && errorJson.detail) {
+        errorDetail = typeof errorJson.detail === 'string' ? errorJson.detail : JSON.stringify(errorJson.detail);
+      }
+    } catch {
+      // Fallback if response body isn't JSON
+    }
+    throw new Error(errorDetail);
+  }
+
+  return response.json();
+}
+
 
 
 

@@ -92,5 +92,32 @@ export interface SearchOptions {
   file_extension?: string;
 }
 
+export type DependencyType = 'internal' | 'external' | 'unknown';
+export type ResolutionStatus = 'resolved' | 'external' | 'unresolved';
+
+export interface DependencyItem {
+  source_file: string;
+  target_file?: string | null;
+  raw_import: string;
+  module_name: string;
+  imported_symbols: string[];
+  dependency_type: DependencyType;
+  resolution_status: ResolutionStatus;
+  line_number: number;
+}
+
+export interface RepositoryDependenciesResponse {
+  repo_id: string;
+  total_files: number;
+  total_dependencies: number;
+  internal_dependencies_count: number;
+  external_dependencies_count: number;
+  unresolved_dependencies_count: number;
+  has_circular_dependencies: boolean;
+  circular_dependency_cycles: string[][];
+  dependencies: DependencyItem[];
+}
+
+
 
 
