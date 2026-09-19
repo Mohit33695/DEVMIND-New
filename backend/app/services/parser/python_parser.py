@@ -73,6 +73,8 @@ class PythonASTVisitor(ast.NodeVisitor):
         signature = f"class {node.name}{bases_str}"
         docstring = ast.get_docstring(node)
 
+        visibility = "private" if (node.name.startswith("_") and not node.name.startswith("__")) else "public"
+
         self.symbols.append(
             SymbolItem(
                 name=node.name,
@@ -82,6 +84,10 @@ class PythonASTVisitor(ast.NodeVisitor):
                 line_end=self._get_node_end_line(node),
                 signature=signature,
                 docstring=docstring,
+                parent_symbol=None,
+                parameters=None,
+                return_type=None,
+                visibility=visibility,
             )
         )
 
@@ -95,6 +101,7 @@ class PythonASTVisitor(ast.NodeVisitor):
 
         is_method = len(self._class_stack) > 0
         kind = SymbolKind.METHOD if is_method else SymbolKind.FUNCTION
+        parent_symbol = self._class_stack[-1] if is_method else None
 
         # Format function parameters safely
         param_names = [arg.arg for arg in node.args.args]
@@ -107,6 +114,15 @@ class PythonASTVisitor(ast.NodeVisitor):
         signature = f"{prefix} {node.name}({', '.join(param_names)})"
         docstring = ast.get_docstring(node)
 
+        return_type = None
+        if node.returns:
+            try:
+                return_type = ast.unparse(node.returns)
+            except Exception:
+                return_type = None
+
+        visibility = "private" if (node.name.startswith("_") and not node.name.startswith("__")) else "public"
+
         self.symbols.append(
             SymbolItem(
                 name=node.name,
@@ -116,6 +132,10 @@ class PythonASTVisitor(ast.NodeVisitor):
                 line_end=self._get_node_end_line(node),
                 signature=signature,
                 docstring=docstring,
+                parent_symbol=parent_symbol,
+                parameters=param_names if param_names else None,
+                return_type=return_type,
+                visibility=visibility,
             )
         )
 

@@ -128,6 +128,7 @@ export const renderButton = (label: string): JSX.Element => {
     classes = [s for s in symbols if s.kind == SymbolKind.CLASS]
     assert len(classes) == 1
     assert classes[0].name == "DataService"
+    assert classes[0].visibility == "export"
 
     # 3. Methods
     methods = [s for s in symbols if s.kind == SymbolKind.METHOD]
@@ -136,11 +137,22 @@ export const renderButton = (label: string): JSX.Element => {
     assert "constructor" in method_names
     assert "getData" in method_names
 
+    get_data_method = next(m for m in methods if m.name == "getData")
+    assert get_data_method.parent_symbol == "DataService"
+    assert get_data_method.visibility == "public"
+    assert get_data_method.return_type == "Promise<T>"
+
     # 4. Functions
     funcs = [s for s in symbols if s.kind == SymbolKind.FUNCTION]
     func_names = [f.name for f in funcs]
     assert "processUser" in func_names
     assert "renderButton" in func_names
+
+    proc_user = next(f for f in funcs if f.name == "processUser")
+    assert proc_user.parent_symbol is None
+    assert proc_user.visibility == "export"
+    assert proc_user.parameters == ["user"]
+    assert proc_user.return_type == "boolean"
 
 
 def test_malformed_source_handling():

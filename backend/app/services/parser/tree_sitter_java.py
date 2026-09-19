@@ -88,6 +88,44 @@ class JavaTreeSitterParser(BaseLanguageParser):
             logger.warning(f"Failed to parse symbols in '{relative_path}': {str(exc)}")
             return []
 
+    def _extract_parameters(self, node: Node, source_text: str) -> Optional[List[str]]:
+        """Extracts formal parameter names from a Java method or constructor node."""
+        params_node = node.child_by_field_name("parameters")
+        if not params_node:
+            return None
+        param_names = []
+        for child in params_node.children:
+            if child.type == "formal_parameter":
+                name_node = child.child_by_field_name("name")
+                if name_node:
+                    param_names.append(self._get_node_text(name_node, source_text).strip())
+                else:
+                    text = self._get_node_text(child, source_text).strip()
+                    if text and text not in ("(", ")", ","):
+                        param_names.append(text.split()[-1])
+        return param_names if param_names else None
+
+    def _extract_return_type(self, node: Node, source_text: str) -> Optional[str]:
+        """Extracts return type from a Java method node."""
+        type_node = node.child_by_field_name("type")
+        if type_node:
+            return self._get_node_text(type_node, source_text).strip()
+        return None
+
+    def _extract_visibility(self, node: Node, source_text: str) -> Optional[str]:
+        """Extracts Java visibility modifier (public/private/protected) if explicitly present."""
+        for child in node.children:
+            if child.type == "modifiers":
+                text = self._get_node_text(child, source_text)
+                tokens = text.split()
+                if "public" in tokens:
+                    return "public"
+                elif "private" in tokens:
+                    return "private"
+                elif "protected" in tokens:
+                    return "protected"
+        return None
+
     def _traverse_node(
         self,
         node: Node,
@@ -101,6 +139,7 @@ class JavaTreeSitterParser(BaseLanguageParser):
             class_stack = []
 
         node_type = node.type
+        parent_class = class_stack[-1] if class_stack else None
 
         # 1. Imports
         if node_type == "import_declaration":
@@ -114,6 +153,10 @@ class JavaTreeSitterParser(BaseLanguageParser):
                     line_end=node.end_point[0] + 1,
                     signature=signature,
                     docstring=None,
+                    parent_symbol=None,
+                    parameters=None,
+                    return_type=None,
+                    visibility=None,
                 )
             )
             return
@@ -128,6 +171,7 @@ class JavaTreeSitterParser(BaseLanguageParser):
             )
             signature = self._get_signature(node, source_text)
             docstring = self._get_docstring(node, source_text)
+            visibility = self._extract_visibility(node, source_text)
 
             symbols.append(
                 SymbolItem(
@@ -138,6 +182,10 @@ class JavaTreeSitterParser(BaseLanguageParser):
                     line_end=node.end_point[0] + 1,
                     signature=signature,
                     docstring=docstring,
+                    parent_symbol=None,
+                    parameters=None,
+                    return_type=None,
+                    visibility=visibility,
                 )
             )
 
@@ -161,6 +209,9 @@ class JavaTreeSitterParser(BaseLanguageParser):
             )
             signature = self._get_signature(node, source_text)
             docstring = self._get_docstring(node, source_text)
+            params = self._extract_parameters(node, source_text)
+            ret_type = self._extract_return_type(node, source_text) if node_type == "method_declaration" else None
+            visibility = self._extract_visibility(node, source_text)
 
             symbols.append(
                 SymbolItem(
@@ -171,6 +222,10 @@ class JavaTreeSitterParser(BaseLanguageParser):
                     line_end=node.end_point[0] + 1,
                     signature=signature,
                     docstring=docstring,
+                    parent_symbol=parent_class,
+                    parameters=params,
+                    return_type=ret_type,
+                    visibility=visibility,
                 )
             )
             return

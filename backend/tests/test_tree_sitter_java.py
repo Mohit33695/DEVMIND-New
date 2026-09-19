@@ -88,9 +88,23 @@ public interface Repository {
 
     constructor_symbol = next(m for m in methods if m.name == "Server")
     assert constructor_symbol.docstring == "Constructor for Server."
+    assert constructor_symbol.parent_symbol == "Server"
+    assert constructor_symbol.parameters == ["port"]
+    assert constructor_symbol.return_type is None
+    assert constructor_symbol.visibility == "public"
 
     start_method = next(m for m in methods if m.name == "start")
     assert start_method.docstring == "Start the server instance."
+    assert start_method.parent_symbol == "Server"
+    assert start_method.parameters is None
+    assert start_method.return_type == "void"
+    assert start_method.visibility == "public"
+
+    save_method = next(m for m in methods if m.name == "save")
+    assert save_method.parent_symbol == "Repository"
+    assert save_method.parameters == ["entity"]
+    assert save_method.return_type == "void"
+    assert save_method.visibility is None
 
     # Line number check
     for s in symbols:

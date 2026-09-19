@@ -90,6 +90,17 @@ def test_get_repository_symbols_multi_language():
     assert "Server.java" in paths
     assert "main.go" in paths
 
+    # Verify presence of rich metadata fields in JSON response items
+    java_file = next(f for f in data["file_symbols"] if f["file_path"] == "Server.java")
+    java_method = next(s for s in java_file["symbols"] if s["name"] == "start")
+    assert java_method["parent_symbol"] == "Server"
+    assert java_method["return_type"] == "void"
+    assert java_method["visibility"] == "public"
+
+    go_file = next(f for f in data["file_symbols"] if f["file_path"] == "main.go")
+    go_func = next(s for s in go_file["symbols"] if s["name"] == "main")
+    assert go_func["visibility"] == "package"
+
 
 def test_get_repository_symbols_not_found():
     """Verifies 404 response when repo_id does not exist."""

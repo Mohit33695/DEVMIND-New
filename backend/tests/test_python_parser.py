@@ -64,16 +64,26 @@ async def async_worker():
         assert "__init__" in method_names
         assert "fetch_profile" in method_names
 
-        # Verify async method signature prefix
+        # Verify async method signature prefix & rich metadata
         fetch_method = next(m for m in method_symbols if m.name == "fetch_profile")
         assert "async def fetch_profile" in fetch_method.signature
+        assert fetch_method.parent_symbol == "UserAccount"
+        assert fetch_method.parameters == ["self"]
+        assert fetch_method.return_type == "dict"
+        assert fetch_method.visibility == "public"
 
-        # 4. Top level functions
+        # 4. Top level functions & private naming
         func_symbols = [s for s in symbols if s.kind == SymbolKind.FUNCTION]
         assert len(func_symbols) == 2
         func_names = [f.name for f in func_symbols]
         assert "top_level_function" in func_names
         assert "async_worker" in func_names
+
+        top_func = next(f for f in func_symbols if f.name == "top_level_function")
+        assert top_func.parent_symbol is None
+        assert top_func.parameters == ["a", "b"]
+        assert top_func.return_type is None
+        assert top_func.visibility == "public"
 
         # 5. Line numbers check
         for s in symbols:

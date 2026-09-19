@@ -84,6 +84,51 @@ class GoTreeSitterParser(BaseLanguageParser):
             logger.warning(f"Failed to parse symbols in '{relative_path}': {str(exc)}")
             return []
 
+    def _extract_receiver_parent(self, node: Node, source_text: str) -> Optional[str]:
+        """Extracts parent type name for Go receiver methods."""
+        recv_node = node.child_by_field_name("receiver")
+        if not recv_node:
+            return None
+        text = self._get_node_text(recv_node, source_text).strip()
+        cleaned = text.strip("()").split()
+        if cleaned:
+            raw_type = cleaned[-1].lstrip("*")
+            return raw_type if raw_type else None
+        return None
+
+    def _extract_parameters(self, node: Node, source_text: str) -> Optional[List[str]]:
+        """Extracts formal parameter names from a Go function or method node."""
+        params_node = node.child_by_field_name("parameters")
+        if not params_node:
+            return None
+        param_names = []
+        for child in params_node.children:
+            if child.type == "parameter_declaration":
+                name_node = child.child_by_field_name("name")
+                if name_node:
+                    param_names.append(self._get_node_text(name_node, source_text).strip())
+                else:
+                    text = self._get_node_text(child, source_text).strip()
+                    if text and text not in ("(", ")", ","):
+                        param_names.append(text.split()[0])
+        return param_names if param_names else None
+
+    def _extract_return_type(self, node: Node, source_text: str) -> Optional[str]:
+        """Extracts return type string from a Go function or method node."""
+        res_node = node.child_by_field_name("result")
+        if res_node:
+            text = self._get_node_text(res_node, source_text).strip()
+            if text.startswith("(") and text.endswith(")"):
+                text = text[1:-1].strip()
+            return text if text else None
+        return None
+
+    def _extract_visibility(self, name: str) -> Optional[str]:
+        """Determines Go export visibility based on identifier capitalization."""
+        if not name:
+            return None
+        return "export" if name[0].isupper() else "package"
+
     def _traverse_node(
         self,
         node: Node,
@@ -112,6 +157,10 @@ class GoTreeSitterParser(BaseLanguageParser):
                                 line_end=spec.end_point[0] + 1,
                                 signature=import_stmt,
                                 docstring=None,
+                                parent_symbol=None,
+                                parameters=None,
+                                return_type=None,
+                                visibility=None,
                             )
                         )
             else:
@@ -125,6 +174,10 @@ class GoTreeSitterParser(BaseLanguageParser):
                         line_end=node.end_point[0] + 1,
                         signature=signature,
                         docstring=None,
+                        parent_symbol=None,
+                        parameters=None,
+                        return_type=None,
+                        visibility=None,
                     )
                 )
             return
@@ -139,6 +192,9 @@ class GoTreeSitterParser(BaseLanguageParser):
             )
             signature = self._get_signature(node, source_text)
             docstring = self._get_docstring(node, source_text)
+            params = self._extract_parameters(node, source_text)
+            ret_type = self._extract_return_type(node, source_text)
+            visibility = self._extract_visibility(func_name)
 
             symbols.append(
                 SymbolItem(
@@ -149,6 +205,10 @@ class GoTreeSitterParser(BaseLanguageParser):
                     line_end=node.end_point[0] + 1,
                     signature=signature,
                     docstring=docstring,
+                    parent_symbol=None,
+                    parameters=params,
+                    return_type=ret_type,
+                    visibility=visibility,
                 )
             )
             return
@@ -163,6 +223,10 @@ class GoTreeSitterParser(BaseLanguageParser):
             )
             signature = self._get_signature(node, source_text)
             docstring = self._get_docstring(node, source_text)
+            parent_type = self._extract_receiver_parent(node, source_text)
+            params = self._extract_parameters(node, source_text)
+            ret_type = self._extract_return_type(node, source_text)
+            visibility = self._extract_visibility(method_name)
 
             symbols.append(
                 SymbolItem(
@@ -173,6 +237,10 @@ class GoTreeSitterParser(BaseLanguageParser):
                     line_end=node.end_point[0] + 1,
                     signature=signature,
                     docstring=docstring,
+                    parent_symbol=parent_type,
+                    parameters=params,
+                    return_type=ret_type,
+                    visibility=visibility,
                 )
             )
             return
@@ -188,6 +256,7 @@ class GoTreeSitterParser(BaseLanguageParser):
                     if name_node and type_node and type_node.type in ("struct_type", "interface_type"):
                         type_name = self._get_node_text(name_node, source_text)
                         signature = self._get_signature(child, source_text)
+                        visibility = self._extract_visibility(type_name)
 
                         symbols.append(
                             SymbolItem(
@@ -198,6 +267,10 @@ class GoTreeSitterParser(BaseLanguageParser):
                                 line_end=child.end_point[0] + 1,
                                 signature=f"type {signature}",
                                 docstring=docstring,
+                                parent_symbol=None,
+                                parameters=None,
+                                return_type=None,
+                                visibility=visibility,
                             )
                         )
             return

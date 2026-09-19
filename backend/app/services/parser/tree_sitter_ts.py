@@ -109,6 +109,56 @@ class TypeScriptTreeSitterParser(BaseLanguageParser):
             logger.warning(f"Failed to parse symbols in '{relative_path}': {str(exc)}")
             return []
 
+    def _extract_parameters(self, node: Node, source_text: str) -> Optional[List[str]]:
+        """Extracts formal parameter names from a function or method node."""
+        params_node = node.child_by_field_name("parameters")
+        if not params_node:
+            # Fallback to checking children for formal_parameters
+            for child in node.children:
+                if child.type == "formal_parameters":
+                    params_node = child
+                    break
+        if not params_node:
+            return None
+
+        param_names = []
+        for child in params_node.children:
+            if child.type in ("required_parameter", "optional_parameter", "rest_parameter"):
+                pattern = child.child_by_field_name("pattern") or child.child_by_field_name("name")
+                if pattern:
+                    param_names.append(self._get_node_text(pattern, source_text).strip())
+                else:
+                    text = self._get_node_text(child, source_text).split(":")[0].strip()
+                    if text and text not in ("(", ")", ","):
+                        param_names.append(text)
+            elif child.type == "identifier":
+                param_names.append(self._get_node_text(child, source_text).strip())
+        return param_names if param_names else None
+
+    def _extract_return_type(self, node: Node, source_text: str) -> Optional[str]:
+        """Extracts return type annotation string if present."""
+        ret_node = node.child_by_field_name("return_type")
+        if not ret_node:
+            for child in node.children:
+                if child.type == "type_annotation":
+                    ret_node = child
+                    break
+        if ret_node:
+            text = self._get_node_text(ret_node, source_text).strip()
+            if text.startswith(":"):
+                text = text[1:].strip()
+            return text if text else None
+        return None
+
+    def _extract_visibility(self, node: Node, source_text: str, is_exported: bool = False) -> Optional[str]:
+        """Extracts accessibility modifier (public/private/protected) or export status."""
+        for child in node.children:
+            if child.type in ("accessibility_modifier", "accessibility"):
+                return self._get_node_text(child, source_text).strip()
+        if is_exported:
+            return "export"
+        return None
+
     def _traverse_node(
         self,
         node: Node,
@@ -116,6 +166,7 @@ class TypeScriptTreeSitterParser(BaseLanguageParser):
         relative_path: str,
         symbols: List[SymbolItem],
         class_stack: Optional[List[str]] = None,
+        is_exported: bool = False,
     ):
         """Recursively traverses Tree-sitter CST nodes to extract symbol definitions."""
         if class_stack is None:
@@ -133,8 +184,10 @@ class TypeScriptTreeSitterParser(BaseLanguageParser):
                     "variable_declaration",
                     "interface_declaration",
                 ):
-                    self._traverse_node(child, source_text, relative_path, symbols, class_stack)
+                    self._traverse_node(child, source_text, relative_path, symbols, class_stack, is_exported=True)
             return
+
+        parent_class = class_stack[-1] if class_stack else None
 
         # 1. Imports
         if node_type == "import_statement":
@@ -148,6 +201,10 @@ class TypeScriptTreeSitterParser(BaseLanguageParser):
                     line_end=node.end_point[0] + 1,
                     signature=signature,
                     docstring=None,
+                    parent_symbol=None,
+                    parameters=None,
+                    return_type=None,
+                    visibility=None,
                 )
             )
             return
@@ -162,6 +219,7 @@ class TypeScriptTreeSitterParser(BaseLanguageParser):
             )
             signature = self._get_signature(node, source_text)
             docstring = self._get_docstring(node, source_text)
+            visibility = self._extract_visibility(node, source_text, is_exported)
 
             symbols.append(
                 SymbolItem(
@@ -172,6 +230,10 @@ class TypeScriptTreeSitterParser(BaseLanguageParser):
                     line_end=node.end_point[0] + 1,
                     signature=signature,
                     docstring=docstring,
+                    parent_symbol=None,
+                    parameters=None,
+                    return_type=None,
+                    visibility=visibility,
                 )
             )
 
@@ -181,7 +243,7 @@ class TypeScriptTreeSitterParser(BaseLanguageParser):
                 new_class_stack = class_stack + [class_name]
                 for child in body_node.children:
                     self._traverse_node(
-                        child, source_text, relative_path, symbols, new_class_stack
+                        child, source_text, relative_path, symbols, new_class_stack, is_exported=False
                     )
             return
 
@@ -196,6 +258,9 @@ class TypeScriptTreeSitterParser(BaseLanguageParser):
                 )
                 signature = self._get_signature(node, source_text)
                 docstring = self._get_docstring(node, source_text)
+                params = self._extract_parameters(node, source_text)
+                ret_type = self._extract_return_type(node, source_text)
+                visibility = self._extract_visibility(node, source_text, is_exported)
 
                 symbols.append(
                     SymbolItem(
@@ -206,6 +271,10 @@ class TypeScriptTreeSitterParser(BaseLanguageParser):
                         line_end=node.end_point[0] + 1,
                         signature=signature,
                         docstring=docstring,
+                        parent_symbol=parent_class,
+                        parameters=params,
+                        return_type=ret_type,
+                        visibility=visibility,
                     )
                 )
             return
@@ -221,6 +290,9 @@ class TypeScriptTreeSitterParser(BaseLanguageParser):
             kind = SymbolKind.METHOD if class_stack else SymbolKind.FUNCTION
             signature = self._get_signature(node, source_text)
             docstring = self._get_docstring(node, source_text)
+            params = self._extract_parameters(node, source_text)
+            ret_type = self._extract_return_type(node, source_text)
+            visibility = self._extract_visibility(node, source_text, is_exported)
 
             symbols.append(
                 SymbolItem(
@@ -231,12 +303,18 @@ class TypeScriptTreeSitterParser(BaseLanguageParser):
                     line_end=node.end_point[0] + 1,
                     signature=signature,
                     docstring=docstring,
+                    parent_symbol=parent_class,
+                    parameters=params,
+                    return_type=ret_type,
+                    visibility=visibility,
                 )
             )
             return
 
         # 5. Variable Arrow Functions / Function Expressions (`const foo = () => {}`)
         elif node_type in ("lexical_declaration", "variable_declaration"):
+            visibility = self._extract_visibility(node, source_text, is_exported)
+
             for child in node.children:
                 if child.type == "variable_declarator":
                     name_node = child.child_by_field_name("name")
@@ -250,6 +328,8 @@ class TypeScriptTreeSitterParser(BaseLanguageParser):
                         kind = SymbolKind.METHOD if class_stack else SymbolKind.FUNCTION
                         signature = self._get_signature(node, source_text)
                         docstring = self._get_docstring(node, source_text)
+                        params = self._extract_parameters(value_node, source_text)
+                        ret_type = self._extract_return_type(value_node, source_text)
 
                         symbols.append(
                             SymbolItem(
@@ -260,10 +340,14 @@ class TypeScriptTreeSitterParser(BaseLanguageParser):
                                 line_end=node.end_point[0] + 1,
                                 signature=signature,
                                 docstring=docstring,
+                                parent_symbol=parent_class,
+                                parameters=params,
+                                return_type=ret_type,
+                                visibility=visibility,
                             )
                         )
             return
 
         # Traverse general children
         for child in node.children:
-            self._traverse_node(child, source_text, relative_path, symbols, class_stack)
+            self._traverse_node(child, source_text, relative_path, symbols, class_stack, is_exported)

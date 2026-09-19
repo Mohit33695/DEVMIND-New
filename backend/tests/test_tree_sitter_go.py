@@ -82,6 +82,10 @@ func (s *Server) Start() error {
     assert len(funcs) == 1
     assert funcs[0].name == "NewServer"
     assert funcs[0].docstring == "Top-level factory function."
+    assert funcs[0].parent_symbol is None
+    assert funcs[0].parameters == ["port"]
+    assert funcs[0].return_type == "*Server"
+    assert funcs[0].visibility == "export"
 
     # 4. Receiver Methods
     methods = [s for s in symbols if s.kind == SymbolKind.METHOD]
@@ -89,6 +93,9 @@ func (s *Server) Start() error {
     assert methods[0].name == "Start"
     assert methods[0].docstring == "Receiver method for Server."
     assert "func (s *Server) Start() error" in methods[0].signature
+    assert methods[0].parent_symbol == "Server"
+    assert methods[0].return_type == "error"
+    assert methods[0].visibility == "export"
 
     # Line number check
     for s in symbols:

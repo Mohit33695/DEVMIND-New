@@ -26,6 +26,10 @@ class SymbolItem(BaseModel):
     line_end: int = Field(..., description="1-indexed line end number")
     signature: Optional[str] = Field(None, description="Signature or declaration string")
     docstring: Optional[str] = Field(None, description="Extracted docstring if present")
+    parent_symbol: Optional[str] = Field(None, description="Name of enclosing class, struct, or scope")
+    parameters: Optional[List[str]] = Field(None, description="List of formal parameter names")
+    return_type: Optional[str] = Field(None, description="Declared return type annotation if available")
+    visibility: Optional[str] = Field(None, description="Access visibility modifier (e.g. public, private, export)")
 
 
 class FileSymbols(BaseModel):
