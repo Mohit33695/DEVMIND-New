@@ -152,6 +152,50 @@ export interface RepositoryDocumentationResponse {
   modules: ModuleDocItem[];
 }
 
+export interface QualityFindingItem {
+  id: string;
+  file_path: string;
+  rule_id: string;
+  rule_name: string;
+  category: string;
+  severity: 'HIGH' | 'MEDIUM' | 'LOW';
+  finding_type: 'VERIFIED_FACT' | 'HEURISTIC_RISK';
+  message: string;
+  line_start?: number | null;
+  line_end?: number | null;
+  symbol_name?: string | null;
+  metric_value?: number | null;
+  threshold_value?: number | null;
+}
+
+export interface QualityMetricsSummary {
+  total_findings: number;
+  high_severity_count: number;
+  medium_severity_count: number;
+  low_severity_count: number;
+  documentation_coverage_percentage: number;
+  average_function_length: number;
+  average_parameters_per_function: number;
+  large_files_count: number;
+  long_functions_count: number;
+}
+
+export interface FileQualitySummary {
+  file_path: string;
+  language: string;
+  total_lines: number;
+  total_symbols: number;
+  findings_count: number;
+}
+
+export interface RepositoryQualityResponse {
+  repo_id: string;
+  summary: QualityMetricsSummary;
+  findings: QualityFindingItem[];
+  files_summary: FileQualitySummary[];
+}
+
+
 
 
 

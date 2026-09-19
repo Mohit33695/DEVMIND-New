@@ -13,12 +13,14 @@ from pydantic import BaseModel
 
 from app.schemas.dependencies import RepositoryDependenciesResponse
 from app.schemas.documentation import RepositoryDocumentationResponse
+from app.schemas.quality import RepositoryQualityResponse
 from app.schemas.scanner import RepositoryFileContentResponse, RepositoryScanResult
 from app.schemas.search import RepositorySearchResponse
 from app.schemas.symbols import RepositorySymbolsResponse
 from app.services.dependency import CodeDependencyService
 from app.services.documentation import RepositoryDocumentationService
 from app.services.parser.service import CodeIntelligenceService
+from app.services.quality import CodeQualityService
 from app.services.scanner import RepositoryScanner
 from app.services.search import CodeSearchService
 from app.services.storage import (
@@ -309,4 +311,31 @@ async def get_repository_documentation(repo_id: str) -> RepositoryDocumentationR
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error generating repository documentation: {str(exc)}",
         )
+
+
+@router.get(
+    "/repositories/{repo_id}/quality",
+    response_model=RepositoryQualityResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def get_repository_quality(repo_id: str) -> RepositoryQualityResponse:
+    """
+    GET /api/repositories/{repo_id}/quality
+
+    Statically evaluates codebase quality rules and metrics (long functions, excessive parameters,
+    large classes, long files, missing docstrings, circular dependencies, unresolved imports).
+    """
+    try:
+        return CodeQualityService.analyze_repository_quality(repo_id)
+    except RepositoryNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error analyzing repository quality: {str(exc)}",
+        )
+
 

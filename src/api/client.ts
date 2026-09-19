@@ -16,6 +16,10 @@ import type {
   ModuleDocItem,
   OverviewDocSummary,
   ArchitectureDocSummary,
+  RepositoryQualityResponse,
+  QualityFindingItem,
+  QualityMetricsSummary,
+  FileQualitySummary,
 } from '@/types/repository';
 
 export type {
@@ -36,6 +40,10 @@ export type {
   ModuleDocItem,
   OverviewDocSummary,
   ArchitectureDocSummary,
+  RepositoryQualityResponse,
+  QualityFindingItem,
+  QualityMetricsSummary,
+  FileQualitySummary,
 };
 
 export interface HealthResponse {
@@ -254,6 +262,37 @@ export async function fetchRepositoryDocumentation(
 
   return response.json();
 }
+
+// 8. Repository Quality GET request
+export async function fetchRepositoryQuality(
+  repoId: string
+): Promise<RepositoryQualityResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/repositories/${repoId}/quality`,
+    {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      },
+    }
+  );
+
+  if (!response.ok) {
+    let errorDetail = `Failed to load repository quality analysis (HTTP ${response.status})`;
+    try {
+      const errorJson = await response.json();
+      if (errorJson && errorJson.detail) {
+        errorDetail = typeof errorJson.detail === 'string' ? errorJson.detail : JSON.stringify(errorJson.detail);
+      }
+    } catch {
+      // Fallback if response body isn't JSON
+    }
+    throw new Error(errorDetail);
+  }
+
+  return response.json();
+}
+
 
 
 
