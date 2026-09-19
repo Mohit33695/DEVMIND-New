@@ -70,4 +70,27 @@ export interface FolderNode {
 
 export type TreeNode = FileNode | FolderNode;
 
+export interface SearchResultItem {
+  file_path: string;
+  line_number: number;
+  line_content: string;
+  match_start: number;
+  match_end: number;
+}
+
+export interface RepositorySearchResponse {
+  repo_id: string;
+  query: string;
+  total_matches: number;
+  total_files_searched: number;
+  matches: SearchResultItem[];
+}
+
+export interface SearchOptions {
+  case_sensitive?: boolean;
+  max_results?: number;
+  file_extension?: string;
+}
+
+
 

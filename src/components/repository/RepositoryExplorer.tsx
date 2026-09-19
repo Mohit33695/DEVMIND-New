@@ -10,6 +10,7 @@ import { buildFileTree } from '@/utils/fileTreeBuilder';
 import { fetchFileContent, fetchRepositorySymbols } from '@/api/client';
 import { FileViewer } from '@/components/repository/FileViewer';
 import { SymbolPanel } from '@/components/repository/SymbolPanel';
+import { SearchPanel } from '@/components/repository/SearchPanel';
 
 interface RepositoryExplorerProps {
   scanResult: RepositoryScanResult;
@@ -167,7 +168,10 @@ export const RepositoryExplorer: React.FC<RepositoryExplorerProps> = ({
         </div>
       </div>
 
-      {/* 2. Side-by-Side Split View: File Tree (Left) + File Viewer & Symbol Panel (Right) */}
+      {/* 2. Repository Code Search Panel */}
+      <SearchPanel repoId={repoId} onSelectFile={handleSelectFile} />
+
+      {/* 3. Side-by-Side Split View: File Tree (Left) + File Viewer & Symbol Panel (Right) */}
       <div style={styles.splitLayout}>
         {/* Left Column: File Tree Navigation */}
         <div style={styles.treeBox}>
