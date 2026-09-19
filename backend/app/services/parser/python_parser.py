@@ -45,9 +45,10 @@ class PythonASTVisitor(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_ImportFrom(self, node: ast.ImportFrom):
+        dots = "." * (node.level or 0)
         module = node.module or ""
         names = ", ".join(alias.name for alias in node.names)
-        import_stmt = f"from {module} import {names}" if module else f"import {names}"
+        import_stmt = f"from {dots}{module} import {names}" if (module or dots) else f"import {names}"
         self.symbols.append(
             SymbolItem(
                 name=import_stmt,
