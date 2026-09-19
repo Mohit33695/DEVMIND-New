@@ -3,13 +3,17 @@ Code Intelligence Service.
 
 Purpose:
 Orchestrates static code symbol extraction across stored repository files.
+Uses ParserRegistry to dispatch parsing to the appropriate parser implementation:
+- Python (.py) uses native Python AST (PythonParser).
+- JS/JSX/TS/TSX use Tree-sitter (TypeScriptTreeSitterParser).
 """
 
 import os
 from typing import List, Set
 
 from app.schemas.symbols import FileSymbols, RepositorySymbolsResponse
-from app.services.parser.python_parser import PythonParser
+from app.services.parser.registry import ParserRegistry
+from app.services.scanner import RepositoryScanner
 from app.services.storage import RepositoryNotFoundError, RepositoryStorageService
 
 
@@ -32,7 +36,7 @@ class CodeIntelligenceService:
     @classmethod
     def extract_repository_symbols(cls, repo_id: str) -> RepositorySymbolsResponse:
         """
-        Extracts code symbols from all Python (.py) files in a stored repository.
+        Extracts code symbols from supported source files in a stored repository.
 
         Args:
             repo_id: Unique repository identifier.
@@ -50,7 +54,7 @@ class CodeIntelligenceService:
         if not os.path.exists(repo_dir) or not os.path.isdir(repo_dir):
             raise RepositoryNotFoundError(f"Repository with ID '{repo_id}' not found.")
 
-        python_parser = PythonParser()
+        registry = ParserRegistry()
         file_symbols_list: List[FileSymbols] = []
         total_symbols = 0
 
@@ -63,7 +67,7 @@ class CodeIntelligenceService:
             rel_root = os.path.relpath(root, repo_dir)
 
             for file in files:
-                if not file.lower().endswith(".py") or file.startswith(".git"):
+                if file.startswith(".git"):
                     continue
 
                 abs_file_path = os.path.join(root, file)
@@ -75,12 +79,17 @@ class CodeIntelligenceService:
                 if os.path.getsize(abs_file_path) > cls.MAX_FILE_PARSE_SIZE_BYTES:
                     continue
 
-                symbols = python_parser.parse_file(abs_file_path, rel_file_path)
+                parser = registry.get_parser_for_file(rel_file_path)
+                if parser is None:
+                    continue
+
+                symbols = parser.parse_file(abs_file_path, rel_file_path)
                 if symbols:
+                    language = RepositoryScanner.detect_language(rel_file_path)
                     file_symbols_list.append(
                         FileSymbols(
                             file_path=rel_file_path,
-                            language="Python",
+                            language=language,
                             symbols=symbols,
                         )
                     )
@@ -94,3 +103,4 @@ class CodeIntelligenceService:
             total_symbols=total_symbols,
             file_symbols=file_symbols_list,
         )
+

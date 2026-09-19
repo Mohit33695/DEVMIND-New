@@ -55,8 +55,41 @@ def test_get_repository_symbols_success():
     assert "start_server" in main_names
 
 
+def test_get_repository_symbols_multi_language():
+    """Verifies symbol extraction for repositories containing both Python and TypeScript files."""
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as zf:
+        zf.writestr("server.py", "def run(): pass\n")
+        zf.writestr("client.ts", "import axios from 'axios';\nexport class ApiClient {}\n")
+        zf.writestr("config.json", '{"env": "prod"}')
+
+    zip_bytes = buffer.getvalue()
+    upload_resp = client.post(
+        "/api/repositories/upload",
+        files={"file": ("multi_repo.zip", zip_bytes, "application/zip")},
+    )
+    assert upload_resp.status_code == 200
+    repo_id = upload_resp.json()["repo_id"]
+
+    symbols_resp = client.get(f"/api/repositories/{repo_id}/symbols")
+    assert symbols_resp.status_code == 200
+
+    data = symbols_resp.json()
+    assert data["repo_id"] == repo_id
+    assert len(data["file_symbols"]) == 2  # server.py and client.ts (config.json skipped)
+
+    paths = [f["file_path"] for f in data["file_symbols"]]
+    assert "server.py" in paths
+    assert "client.ts" in paths
+
+    ts_file = next(f for f in data["file_symbols"] if f["file_path"] == "client.ts")
+    assert ts_file["language"] == "TypeScript"
+    assert len(ts_file["symbols"]) == 2
+
+
 def test_get_repository_symbols_not_found():
     """Verifies 404 response when repo_id does not exist."""
     response = client.get("/api/repositories/non-existent-uuid-12345/symbols")
     assert response.status_code == 404
     assert "not found" in response.json()["detail"].lower()
+

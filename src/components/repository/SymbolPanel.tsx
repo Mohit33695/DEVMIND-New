@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import type { SymbolItem, SymbolKind } from '@/types/repository';
 
 interface SymbolPanelProps {
@@ -13,11 +13,19 @@ export const SymbolPanel: React.FC<SymbolPanelProps> = ({
   error = null,
 }) => {
   const [activeTab, setActiveTab] = useState<'all' | SymbolKind>('all');
+  const gridRef = useRef<HTMLDivElement>(null);
 
   // Reset active filter tab to 'all' whenever symbols array prop changes (e.g. selected file switches)
   useEffect(() => {
     setActiveTab('all');
   }, [symbols]);
+
+  // Reset scroll position to top whenever activeTab or symbols change
+  useEffect(() => {
+    if (gridRef.current) {
+      gridRef.current.scrollTop = 0;
+    }
+  }, [activeTab, symbols]);
 
   // Categorize symbols
   const categorized = useMemo(() => {
@@ -147,7 +155,7 @@ export const SymbolPanel: React.FC<SymbolPanelProps> = ({
       </div>
 
       {/* 2. Symbols Grid / List */}
-      <div style={styles.symbolsGrid}>
+      <div key={activeTab} ref={gridRef} style={styles.symbolsGrid}>
         {filteredSymbols.map((item, index) => (
           <div key={`${item.name}-${index}`} style={styles.symbolCard}>
             <div style={styles.cardHeader}>
@@ -185,6 +193,8 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 'var(--radius-md)',
     marginBottom: '12px',
     overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
   },
   loadingBox: {
     padding: '12px 16px',
@@ -259,8 +269,10 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     gap: '8px',
-    maxHeight: '180px',
+    maxHeight: '260px',
     overflowY: 'auto',
+    flex: '1 1 auto',
+    minHeight: 0,
   },
   symbolCard: {
     padding: '8px 10px',
