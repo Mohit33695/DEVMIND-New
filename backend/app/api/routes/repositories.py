@@ -12,9 +12,11 @@ from fastapi import APIRouter, File, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel
 
 from app.schemas.scanner import RepositoryFileContentResponse, RepositoryScanResult
+from app.schemas.search import RepositorySearchResponse
 from app.schemas.symbols import RepositorySymbolsResponse
 from app.services.parser.service import CodeIntelligenceService
 from app.services.scanner import RepositoryScanner
+from app.services.search import CodeSearchService
 from app.services.storage import (
     BinaryFileError,
     FileTooLargeError,
@@ -209,6 +211,49 @@ async def get_repository_symbols(repo_id: str) -> RepositorySymbolsResponse:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error extracting repository symbols: {str(exc)}",
         )
+
+
+@router.get(
+    "/repositories/{repo_id}/search",
+    response_model=RepositorySearchResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def search_repository_code(
+    repo_id: str,
+    q: str = Query(..., min_length=1, description="Search query string"),
+    case_sensitive: bool = Query(False, description="Case-sensitive search flag"),
+    max_results: int = Query(100, ge=1, le=500, description="Maximum number of search results to return"),
+    file_extension: Optional[str] = Query(None, description="Optional file extension filter"),
+) -> RepositorySearchResponse:
+    """
+    GET /api/repositories/{repo_id}/search?q=<query>&case_sensitive=false&max_results=100&file_extension=.py
+
+    Searches text files in a stored repository for lines matching the query string.
+    """
+    try:
+        return CodeSearchService.search_repository(
+            repo_id=repo_id,
+            query=q,
+            case_sensitive=case_sensitive,
+            max_results=max_results,
+            file_extension=file_extension,
+        )
+    except RepositoryNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+    except (ValueError, ZipPathTraversalError) as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error searching repository code: {str(exc)}",
+        )
+
 
 
 
