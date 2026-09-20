@@ -20,6 +20,14 @@ import type {
   QualityFindingItem,
   QualityMetricsSummary,
   FileQualitySummary,
+  RepositorySecurityResponse,
+  SecurityFindingItem,
+  SecurityMetricsSummary,
+  RepositoryTestingResponse,
+  TestFileSummary,
+  SourceTestMapping,
+  TestingFindingItem,
+  TestingMetricsSummary,
 } from '@/types/repository';
 
 export type {
@@ -44,6 +52,14 @@ export type {
   QualityFindingItem,
   QualityMetricsSummary,
   FileQualitySummary,
+  RepositorySecurityResponse,
+  SecurityFindingItem,
+  SecurityMetricsSummary,
+  RepositoryTestingResponse,
+  TestFileSummary,
+  SourceTestMapping,
+  TestingFindingItem,
+  TestingMetricsSummary,
 };
 
 export interface HealthResponse {
@@ -292,6 +308,66 @@ export async function fetchRepositoryQuality(
 
   return response.json();
 }
+
+// 9. Repository Security GET request
+export async function fetchRepositorySecurity(
+  repoId: string
+): Promise<RepositorySecurityResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/repositories/${repoId}/security`,
+    {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      },
+    }
+  );
+
+  if (!response.ok) {
+    let errorDetail = `Failed to load repository security analysis (HTTP ${response.status})`;
+    try {
+      const errorJson = await response.json();
+      if (errorJson && errorJson.detail) {
+        errorDetail = typeof errorJson.detail === 'string' ? errorJson.detail : JSON.stringify(errorJson.detail);
+      }
+    } catch {
+      // Fallback if response body isn't JSON
+    }
+    throw new Error(errorDetail);
+  }
+
+  return response.json();
+}
+
+// 10. Repository Testing Intelligence GET request
+export async function fetchRepositoryTesting(repoId: string): Promise<RepositoryTestingResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/repositories/${encodeURIComponent(repoId)}/testing`,
+    {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      },
+    }
+  );
+
+  if (!response.ok) {
+    let errorDetail = `Failed to load repository testing analysis (HTTP ${response.status})`;
+    try {
+      const errorJson = await response.json();
+      if (errorJson && errorJson.detail) {
+        errorDetail = typeof errorJson.detail === 'string' ? errorJson.detail : JSON.stringify(errorJson.detail);
+      }
+    } catch {
+      // Fallback if response body isn't JSON
+    }
+    throw new Error(errorDetail);
+  }
+
+  return response.json();
+}
+
+
 
 
 

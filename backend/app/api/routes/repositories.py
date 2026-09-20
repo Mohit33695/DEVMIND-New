@@ -16,11 +16,15 @@ from app.schemas.documentation import RepositoryDocumentationResponse
 from app.schemas.quality import RepositoryQualityResponse
 from app.schemas.scanner import RepositoryFileContentResponse, RepositoryScanResult
 from app.schemas.search import RepositorySearchResponse
+from app.schemas.security import RepositorySecurityResponse
 from app.schemas.symbols import RepositorySymbolsResponse
+from app.schemas.testing import RepositoryTestingResponse
 from app.services.dependency import CodeDependencyService
 from app.services.documentation import RepositoryDocumentationService
 from app.services.parser.service import CodeIntelligenceService
 from app.services.quality import CodeQualityService
+from app.services.security import CodeSecurityService
+from app.services.testing import CodeTestingService
 from app.services.scanner import RepositoryScanner
 from app.services.search import CodeSearchService
 from app.services.storage import (
@@ -337,5 +341,59 @@ async def get_repository_quality(repo_id: str) -> RepositoryQualityResponse:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error analyzing repository quality: {str(exc)}",
         )
+
+
+@router.get(
+    "/repositories/{repo_id}/security",
+    response_model=RepositorySecurityResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def get_repository_security(repo_id: str) -> RepositorySecurityResponse:
+    """
+    GET /api/repositories/{repo_id}/security
+
+    Statically audits repository source files for security findings (AWS keys, private key blocks,
+    hardcoded secrets, unsafe code execution, weak cryptography, dynamic SQL construction, debug mode).
+    """
+    try:
+        return CodeSecurityService.analyze_repository_security(repo_id)
+    except RepositoryNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error analyzing repository security: {str(exc)}",
+        )
+
+
+@router.get(
+    "/repositories/{repo_id}/testing",
+    response_model=RepositoryTestingResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def get_repository_testing(repo_id: str) -> RepositoryTestingResponse:
+    """
+    GET /api/repositories/{repo_id}/testing
+
+    Statically inspects repository source files for testing metrics, test file inventory,
+    test framework footprints, assertion patterns, and source-to-test mapping heuristics.
+    """
+    try:
+        return CodeTestingService.analyze_repository_testing(repo_id)
+    except RepositoryNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error analyzing repository testing: {str(exc)}",
+        )
+
+
 
 

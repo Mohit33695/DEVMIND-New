@@ -195,6 +195,90 @@ export interface RepositoryQualityResponse {
   files_summary: FileQualitySummary[];
 }
 
+export interface SecurityFindingItem {
+  id: string;
+  file_path: string;
+  rule_id: string;
+  rule_name: string;
+  category: string;
+  severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+  classification: 'VERIFIED_STATIC_FINDING' | 'HEURISTIC_SECURITY_RISK';
+  message: string;
+  line_start?: number | null;
+  line_end?: number | null;
+  evidence: string;
+  remediation: string;
+}
+
+export interface SecurityMetricsSummary {
+  total_findings: number;
+  critical_severity_count: number;
+  high_severity_count: number;
+  medium_severity_count: number;
+  low_severity_count: number;
+  secrets_count: number;
+  code_execution_count: number;
+  web_security_count: number;
+}
+
+export interface RepositorySecurityResponse {
+  repo_id: string;
+  summary: SecurityMetricsSummary;
+  findings: SecurityFindingItem[];
+}
+
+export interface TestFileSummary {
+  file_path: string;
+  language: string;
+  framework: string;
+  test_function_count: number;
+  assertion_count: number;
+}
+
+export interface SourceTestMapping {
+  source_file: string;
+  has_obvious_test: boolean;
+  matching_test_file?: string | null;
+  confidence: 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE';
+}
+
+export interface TestingFindingItem {
+  id: string;
+  file_path: string;
+  rule_id: string;
+  rule_name: string;
+  category: string;
+  classification: 'VERIFIED_STATIC_FACT' | 'HEURISTIC_TESTING_SIGNAL';
+  severity: 'INFO' | 'LOW' | 'MEDIUM' | 'HIGH';
+  message: string;
+  line_start?: number | null;
+  line_end?: number | null;
+  evidence: string;
+  remediation: string;
+}
+
+export interface TestingMetricsSummary {
+  total_test_files: number;
+  total_test_functions: number;
+  total_assertions_detected: number;
+  total_source_files: number;
+  source_files_with_tests: number;
+  source_files_without_tests: number;
+  estimated_test_ratio: number;
+  detected_frameworks: string[];
+  test_directories: string[];
+}
+
+export interface RepositoryTestingResponse {
+  repo_id: string;
+  metrics: TestingMetricsSummary;
+  test_files: TestFileSummary[];
+  source_mappings: SourceTestMapping[];
+  findings: TestingFindingItem[];
+}
+
+
+
 
 
 
