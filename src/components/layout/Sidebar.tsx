@@ -17,9 +17,39 @@ interface NavSection {
   items: NavItem[];
 }
 
+import {
+  getStoredRepositories,
+  getActiveRepositoryId,
+  REPO_CHANGED_EVENT,
+  type StoredRepositoryItem,
+} from '@/utils/repositorySession';
+
 export const Sidebar: React.FC<SidebarProps> = ({ isOpenOnMobile, onCloseMobile }) => {
   const navigate = useNavigate();
   const location = useLocation();
+
+  const [repositories, setRepositories] = React.useState<StoredRepositoryItem[]>([]);
+  const [activeRepoId, setActiveRepoId] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    const syncRepoState = () => {
+      setRepositories(getStoredRepositories());
+      setActiveRepoId(getActiveRepositoryId());
+    };
+
+    syncRepoState();
+
+    window.addEventListener(REPO_CHANGED_EVENT, syncRepoState);
+    window.addEventListener('storage', syncRepoState);
+
+    return () => {
+      window.removeEventListener(REPO_CHANGED_EVENT, syncRepoState);
+      window.removeEventListener('storage', syncRepoState);
+    };
+  }, []);
+
+  const activeRepo = repositories.find((r) => r.repo_id === activeRepoId);
+  const displayRepoName = activeRepo ? activeRepo.filename : 'devmind-ai/core';
 
   const handleAddRepository = () => {
     navigate('/repository');
@@ -195,7 +225,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpenOnMobile, onCloseMobile 
         <div style={styles.repoSelectorBox}>
           <div style={styles.repoSelectorHeader}>
             <div style={styles.repoInfo}>
-              <span style={styles.repoName}>devmind-ai/core</span>
+              <span style={styles.repoName}>{displayRepoName}</span>
               <span style={styles.branchBadge}>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <line x1="6" y1="3" x2="6" y2="15" />

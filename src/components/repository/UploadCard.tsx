@@ -4,6 +4,8 @@ import { uploadRepositoryZip, type RepositoryUploadResponse } from '@/api/client
 import { RepositoryExplorer } from '@/components/repository/RepositoryExplorer';
 
 
+import { saveStoredRepository } from '@/utils/repositorySession';
+
 const MAX_FILE_SIZE_BYTES = 200 * 1024 * 1024; // 200 MB
 
 interface ValidationError {
@@ -131,7 +133,20 @@ export const UploadCard: React.FC = () => {
       const result = await uploadRepositoryZip(selectedFile);
       setUploadResult(result);
       if (result.repo_id) {
-        sessionStorage.setItem('devmind_active_repo_id', result.repo_id);
+        saveStoredRepository({
+          repo_id: result.repo_id,
+          filename: result.filename,
+          size: result.size,
+          uploaded_at: new Date().toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          }),
+          total_files: result.scan_result?.total_files || 0,
+          detected_languages: result.scan_result?.detected_languages || {},
+        });
       }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Upload failed due to a server error.';

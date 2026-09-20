@@ -25,6 +25,12 @@ from app.schemas.rag import (
     RepositoryRetrievalRequest,
     RepositoryRetrievalResponse,
 )
+from app.schemas.chat import (
+    ChatRequest,
+    ChatResponse,
+    RepositoryChatRequest,
+    RepositoryChatResponse,
+)
 from app.services.dependency import CodeDependencyService
 from app.services.documentation import RepositoryDocumentationService
 from app.services.parser.service import CodeIntelligenceService
@@ -33,6 +39,7 @@ from app.services.security import CodeSecurityService
 from app.services.testing import CodeTestingService
 from app.services.git import CodeGitService
 from app.services.rag import CodebaseRAGService
+from app.services.chat import CodebaseChatService
 from app.services.scanner import RepositoryScanner
 from app.services.search import CodeSearchService
 from app.services.storage import (
@@ -519,6 +526,42 @@ async def retrieve_repository_rag(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error executing codebase retrieval: {str(exc)}",
         )
+
+
+@router.post(
+    "/repositories/{repo_id}/chat",
+    response_model=ChatResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def chat_with_repository(
+    repo_id: str, request: ChatRequest
+) -> ChatResponse:
+    """
+    POST /api/repositories/{repo_id}/chat
+
+    Executes grounded AI chat queries against stored repository RAG vector context.
+    """
+    try:
+        return CodebaseChatService.chat_with_repository(
+            repo_id=repo_id,
+            request=request,
+        )
+    except RepositoryNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error executing repository AI chat: {str(exc)}",
+        )
+
 
 
 

@@ -39,6 +39,9 @@ import type {
   RetrievalResult,
   SourceReference,
   CodeChunk,
+  ChatMessage,
+  RepositoryChatRequest,
+  RepositoryChatResponse,
 } from '@/types/repository';
 
 export type {
@@ -82,6 +85,9 @@ export type {
   RetrievalResult,
   SourceReference,
   CodeChunk,
+  ChatMessage,
+  RepositoryChatRequest,
+  RepositoryChatResponse,
 };
 
 export interface HealthResponse {
@@ -505,6 +511,47 @@ export async function retrieveRepositoryRAG(
 
   if (!response.ok) {
     let errorDetail = `Failed to execute semantic retrieval (HTTP ${response.status})`;
+    try {
+      const errorJson = await response.json();
+      if (errorJson && errorJson.detail) {
+        errorDetail = typeof errorJson.detail === 'string' ? errorJson.detail : JSON.stringify(errorJson.detail);
+      }
+    } catch {
+      // Fallback
+    }
+    throw new Error(errorDetail);
+  }
+
+  return response.json();
+}
+
+// 15. Repository AI Chat POST request
+export async function sendRepositoryChatMessage(
+  repoId: string,
+  message: string,
+  history: ChatMessage[] = [],
+  topK: number = 5,
+  scoreThreshold: number = 0.0
+): Promise<RepositoryChatResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/repositories/${encodeURIComponent(repoId)}/chat`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({
+        message,
+        history,
+        top_k: topK,
+        score_threshold: scoreThreshold,
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    let errorDetail = `Failed to send repository chat message (HTTP ${response.status})`;
     try {
       const errorJson = await response.json();
       if (errorJson && errorJson.detail) {

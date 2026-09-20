@@ -373,6 +373,35 @@ export interface RepositoryIndexStatus {
   error?: string | null;
 }
 
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export type ChatSource = SourceReference;
+
+export interface ChatRequest {
+  message: string;
+  history?: ChatMessage[];
+  top_k?: number;
+  score_threshold?: number;
+}
+
+export type RepositoryChatRequest = ChatRequest;
+
+export interface ChatResponse {
+  answer: string;
+  sources: SourceReference[];
+  retrieved_count: number;
+  grounded: boolean;
+  repo_id?: string;
+  query?: string;
+  provider?: string;
+  indexed_status?: string;
+}
+
+export type RepositoryChatResponse = ChatResponse;
+
 
 
 

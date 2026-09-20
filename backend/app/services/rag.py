@@ -64,7 +64,8 @@ class CodebaseRAGService:
 
         if repo_id in cls._status_cache:
             status_obj = cls._status_cache[repo_id]
-            # Verify if vector store agrees
+            if status_obj.status in ("indexing", "failed"):
+                return status_obj
             if vector_store.has_repository(repo_id):
                 status_obj.total_chunks = vector_store.get_repository_chunk_count(repo_id)
                 return status_obj

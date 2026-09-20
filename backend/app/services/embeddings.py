@@ -64,8 +64,16 @@ class MockEmbeddingProvider(EmbeddingProvider):
         if not text or not text.strip():
             return vec
 
-        # Split into lowercase tokens
-        tokens = text.lower().split()
+        import re
+        # Split on non-alphanumeric characters (keeping underscores)
+        raw_words = re.findall(r'[a-zA-Z0-9_]+', text.lower())
+        tokens = []
+        for w in raw_words:
+            tokens.append(w)
+            if "_" in w:
+                subparts = [p for p in w.split("_") if len(p) >= 2]
+                tokens.extend(subparts)
+
         if not tokens:
             return vec
 

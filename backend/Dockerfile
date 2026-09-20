@@ -4,6 +4,11 @@ FROM python:3.12-slim
 # Set working directory inside the container
 WORKDIR /app
 
+# Install system dependencies (git for GitPython intelligence)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends git && \
+    rm -rf /var/lib/apt/lists/*
+
 # Prevent Python from writing .pyc files and enable unbuffered stdout/stderr logging
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1

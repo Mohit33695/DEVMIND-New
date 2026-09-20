@@ -1,11 +1,29 @@
-import React, { useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { UploadCard } from '@/components/repository/UploadCard';
 import { SecurityPanel } from '@/components/repository/SecurityPanel';
 import { ExistingRepositoriesSection } from '@/components/repository/ExistingRepositoriesSection';
 import { AnalysisPipelineSection } from '@/components/repository/AnalysisPipelineSection';
+import { getActiveRepositoryId, REPO_CHANGED_EVENT } from '@/utils/repositorySession';
 
 export const RepositoryPage: React.FC = () => {
+  const [activeRepoId, setActiveRepoId] = useState<string | null>(null);
   const uploadSectionRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    setActiveRepoId(getActiveRepositoryId());
+
+    const handleRepoChanged = () => {
+      setActiveRepoId(getActiveRepositoryId());
+    };
+
+    window.addEventListener(REPO_CHANGED_EVENT, handleRepoChanged);
+    window.addEventListener('storage', handleRepoChanged);
+
+    return () => {
+      window.removeEventListener(REPO_CHANGED_EVENT, handleRepoChanged);
+      window.removeEventListener('storage', handleRepoChanged);
+    };
+  }, []);
 
   const handleScrollToUpload = () => {
     uploadSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -28,9 +46,9 @@ export const RepositoryPage: React.FC = () => {
       </div>
 
       {/* 3. Security Information Panel */}
-      <SecurityPanel />
+      <SecurityPanel repoId={activeRepoId || undefined} />
 
-      {/* 4. Existing Repositories Section (Empty State) */}
+      {/* 4. Existing Repositories Section */}
       <ExistingRepositoriesSection onAddFirstRepo={handleScrollToUpload} />
 
       {/* 5. How Repository Analysis Works Pipeline */}
