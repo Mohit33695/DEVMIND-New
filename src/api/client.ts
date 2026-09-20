@@ -34,6 +34,11 @@ import type {
   GitFileHistoryItem,
   GitActivityPoint,
   GitRepositorySummary,
+  RepositoryIndexStatus,
+  RepositoryRetrievalResponse,
+  RetrievalResult,
+  SourceReference,
+  CodeChunk,
 } from '@/types/repository';
 
 export type {
@@ -72,6 +77,11 @@ export type {
   GitFileHistoryItem,
   GitActivityPoint,
   GitRepositorySummary,
+  RepositoryIndexStatus,
+  RepositoryRetrievalResponse,
+  RetrievalResult,
+  SourceReference,
+  CodeChunk,
 };
 
 export interface HealthResponse {
@@ -413,6 +423,102 @@ export async function fetchRepositoryGit(
 
   return response.json();
 }
+
+// 12. RAG Index Status GET request
+export async function fetchRepositoryIndexStatus(repoId: string): Promise<RepositoryIndexStatus> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/repositories/${encodeURIComponent(repoId)}/index/status`,
+    {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      },
+    }
+  );
+
+  if (!response.ok) {
+    let errorDetail = `Failed to get index status (HTTP ${response.status})`;
+    try {
+      const errorJson = await response.json();
+      if (errorJson && errorJson.detail) {
+        errorDetail = typeof errorJson.detail === 'string' ? errorJson.detail : JSON.stringify(errorJson.detail);
+      }
+    } catch {
+      // Fallback
+    }
+    throw new Error(errorDetail);
+  }
+
+  return response.json();
+}
+
+// 13. RAG Index Repository POST request
+export async function indexRepositoryRAG(repoId: string): Promise<RepositoryIndexStatus> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/repositories/${encodeURIComponent(repoId)}/index`,
+    {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+      },
+    }
+  );
+
+  if (!response.ok) {
+    let errorDetail = `Failed to index repository for RAG (HTTP ${response.status})`;
+    try {
+      const errorJson = await response.json();
+      if (errorJson && errorJson.detail) {
+        errorDetail = typeof errorJson.detail === 'string' ? errorJson.detail : JSON.stringify(errorJson.detail);
+      }
+    } catch {
+      // Fallback
+    }
+    throw new Error(errorDetail);
+  }
+
+  return response.json();
+}
+
+// 14. RAG Semantic Retrieval POST request
+export async function retrieveRepositoryRAG(
+  repoId: string,
+  query: string,
+  topK: number = 5,
+  scoreThreshold: number = 0.0
+): Promise<RepositoryRetrievalResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/repositories/${encodeURIComponent(repoId)}/retrieve`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({
+        query,
+        top_k: topK,
+        score_threshold: scoreThreshold,
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    let errorDetail = `Failed to execute semantic retrieval (HTTP ${response.status})`;
+    try {
+      const errorJson = await response.json();
+      if (errorJson && errorJson.detail) {
+        errorDetail = typeof errorJson.detail === 'string' ? errorJson.detail : JSON.stringify(errorJson.detail);
+      }
+    } catch {
+      // Fallback
+    }
+    throw new Error(errorDetail);
+  }
+
+  return response.json();
+}
+
 
 
 

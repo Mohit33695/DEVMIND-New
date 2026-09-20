@@ -1,12 +1,36 @@
-import React from 'react';
-import { PlaceholderPage } from '@/components/common/PlaceholderPage';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { RagStatusPanel } from '@/components/repository/RagStatusPanel';
 
 export const AIChatPage: React.FC = () => {
+  const [repoId, setRepoId] = useState<string | null>(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const activeId = sessionStorage.getItem('devmind_active_repo_id');
+    setRepoId(activeId);
+  }, []);
+
+  const handleSelectFile = (filePath: string) => {
+    navigate(`/repository?file=${encodeURIComponent(filePath)}`);
+  };
+
   return (
-    <PlaceholderPage
-      title="AI Contextual Code Assistant"
-      category="Workspace"
-      description="Interactive AI assistant anchored to your repository AST, dependency graph, and codebase context."
-    />
+    <div style={styles.pageContainer}>
+      <RagStatusPanel
+        repoId={repoId || undefined}
+        onSelectFile={handleSelectFile}
+      />
+    </div>
   );
+};
+
+const styles: Record<string, React.CSSProperties> = {
+  pageContainer: {
+    maxWidth: '1200px',
+    margin: '0 auto',
+    width: '100%',
+    display: 'flex',
+    flexDirection: 'column',
+  },
 };

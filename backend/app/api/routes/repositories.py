@@ -20,6 +20,11 @@ from app.schemas.security import RepositorySecurityResponse
 from app.schemas.symbols import RepositorySymbolsResponse
 from app.schemas.testing import RepositoryTestingResponse
 from app.schemas.git import RepositoryGitResponse
+from app.schemas.rag import (
+    RepositoryIndexStatus,
+    RepositoryRetrievalRequest,
+    RepositoryRetrievalResponse,
+)
 from app.services.dependency import CodeDependencyService
 from app.services.documentation import RepositoryDocumentationService
 from app.services.parser.service import CodeIntelligenceService
@@ -27,6 +32,7 @@ from app.services.quality import CodeQualityService
 from app.services.security import CodeSecurityService
 from app.services.testing import CodeTestingService
 from app.services.git import CodeGitService
+from app.services.rag import CodebaseRAGService
 from app.services.scanner import RepositoryScanner
 from app.services.search import CodeSearchService
 from app.services.storage import (
@@ -426,6 +432,94 @@ async def get_repository_git(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error analyzing repository Git metadata: {str(exc)}",
         )
+
+
+@router.post(
+    "/repositories/{repo_id}/index",
+    response_model=RepositoryIndexStatus,
+    status_code=status.HTTP_200_OK,
+)
+async def index_repository_rag(repo_id: str) -> RepositoryIndexStatus:
+    """
+    POST /api/repositories/{repo_id}/index
+
+    Safely indexes stored repository source files for semantic RAG vector retrieval.
+    """
+    try:
+        return CodebaseRAGService.index_repository(repo_id)
+    except RepositoryNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error indexing repository for RAG: {str(exc)}",
+        )
+
+
+@router.get(
+    "/repositories/{repo_id}/index/status",
+    response_model=RepositoryIndexStatus,
+    status_code=status.HTTP_200_OK,
+)
+async def get_repository_index_status(repo_id: str) -> RepositoryIndexStatus:
+    """
+    GET /api/repositories/{repo_id}/index/status
+
+    Retrieves RAG vector index status overview for a stored repository.
+    """
+    try:
+        return CodebaseRAGService.get_index_status(repo_id)
+    except RepositoryNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error reading repository index status: {str(exc)}",
+        )
+
+
+@router.post(
+    "/repositories/{repo_id}/retrieve",
+    response_model=RepositoryRetrievalResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def retrieve_repository_rag(
+    repo_id: str, request: RepositoryRetrievalRequest
+) -> RepositoryRetrievalResponse:
+    """
+    POST /api/repositories/{repo_id}/retrieve
+
+    Executes repository-scoped semantic vector retrieval with source references.
+    """
+    try:
+        return CodebaseRAGService.retrieve_codebase_context(
+            repo_id=repo_id,
+            query=request.query,
+            top_k=request.top_k,
+            score_threshold=request.score_threshold or 0.0,
+        )
+    except RepositoryNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error executing codebase retrieval: {str(exc)}",
+        )
+
 
 
 

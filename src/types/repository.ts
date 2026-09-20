@@ -329,6 +329,51 @@ export interface RepositoryGitResponse {
   activity_timeline: GitActivityPoint[];
 }
 
+export interface CodeChunk {
+  chunk_id: string;
+  repo_id: string;
+  file_path: string;
+  language: string;
+  start_line: number;
+  end_line: number;
+  symbol_name?: string | null;
+  symbol_kind?: string | null;
+  content: string;
+  content_hash: string;
+}
+
+export interface SourceReference {
+  file_path: string;
+  start_line: number;
+  end_line: number;
+  symbol_name?: string | null;
+  relevance_score: number;
+}
+
+export interface RetrievalResult {
+  chunk: CodeChunk;
+  relevance_score: number;
+  source_reference: SourceReference;
+}
+
+export interface RepositoryRetrievalResponse {
+  repo_id: string;
+  query: string;
+  results: RetrievalResult[];
+}
+
+export interface RepositoryIndexStatus {
+  repo_id: string;
+  status: 'not_indexed' | 'indexing' | 'indexed' | 'failed';
+  total_files: number;
+  indexed_files: number;
+  total_chunks: number;
+  embedding_dimension: number;
+  embedding_provider: string;
+  error?: string | null;
+}
+
+
 
 
 
