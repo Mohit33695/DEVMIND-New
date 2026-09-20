@@ -19,12 +19,14 @@ from app.schemas.search import RepositorySearchResponse
 from app.schemas.security import RepositorySecurityResponse
 from app.schemas.symbols import RepositorySymbolsResponse
 from app.schemas.testing import RepositoryTestingResponse
+from app.schemas.git import RepositoryGitResponse
 from app.services.dependency import CodeDependencyService
 from app.services.documentation import RepositoryDocumentationService
 from app.services.parser.service import CodeIntelligenceService
 from app.services.quality import CodeQualityService
 from app.services.security import CodeSecurityService
 from app.services.testing import CodeTestingService
+from app.services.git import CodeGitService
 from app.services.scanner import RepositoryScanner
 from app.services.search import CodeSearchService
 from app.services.storage import (
@@ -393,6 +395,38 @@ async def get_repository_testing(repo_id: str) -> RepositoryTestingResponse:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error analyzing repository testing: {str(exc)}",
         )
+
+
+@router.get(
+    "/repositories/{repo_id}/git",
+    response_model=RepositoryGitResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def get_repository_git(
+    repo_id: str,
+    max_commits: int = Query(
+        200, ge=1, le=500, description="Maximum number of commits to analyze (1 to 500)"
+    ),
+) -> RepositoryGitResponse:
+    """
+    GET /api/repositories/{repo_id}/git?max_commits=200
+
+    Statically inspects repository Git metadata, commit history, contributor activity,
+    file hotspots, and activity timelines without executing repository code.
+    """
+    try:
+        return CodeGitService.analyze_repository_git(repo_id, max_commits=max_commits)
+    except RepositoryNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error analyzing repository Git metadata: {str(exc)}",
+        )
+
 
 
 

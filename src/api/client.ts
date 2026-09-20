@@ -28,6 +28,12 @@ import type {
   SourceTestMapping,
   TestingFindingItem,
   TestingMetricsSummary,
+  RepositoryGitResponse,
+  GitCommitItem,
+  GitContributorItem,
+  GitFileHistoryItem,
+  GitActivityPoint,
+  GitRepositorySummary,
 } from '@/types/repository';
 
 export type {
@@ -60,6 +66,12 @@ export type {
   SourceTestMapping,
   TestingFindingItem,
   TestingMetricsSummary,
+  RepositoryGitResponse,
+  GitCommitItem,
+  GitContributorItem,
+  GitFileHistoryItem,
+  GitActivityPoint,
+  GitRepositorySummary,
 };
 
 export interface HealthResponse {
@@ -366,6 +378,42 @@ export async function fetchRepositoryTesting(repoId: string): Promise<Repository
 
   return response.json();
 }
+
+// 11. Repository Git Intelligence GET request
+export async function fetchRepositoryGit(
+  repoId: string,
+  maxCommits: number = 200
+): Promise<RepositoryGitResponse> {
+  const params = new URLSearchParams({
+    max_commits: maxCommits.toString(),
+  });
+
+  const response = await fetch(
+    `${API_BASE_URL}/api/repositories/${encodeURIComponent(repoId)}/git?${params.toString()}`,
+    {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      },
+    }
+  );
+
+  if (!response.ok) {
+    let errorDetail = `Failed to load repository Git metadata (HTTP ${response.status})`;
+    try {
+      const errorJson = await response.json();
+      if (errorJson && errorJson.detail) {
+        errorDetail = typeof errorJson.detail === 'string' ? errorJson.detail : JSON.stringify(errorJson.detail);
+      }
+    } catch {
+      // Fallback if response body isn't JSON
+    }
+    throw new Error(errorDetail);
+  }
+
+  return response.json();
+}
+
 
 
 

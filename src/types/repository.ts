@@ -277,6 +277,59 @@ export interface RepositoryTestingResponse {
   findings: TestingFindingItem[];
 }
 
+export interface GitCommitItem {
+  hash: string;
+  short_hash: string;
+  author_name: string;
+  author_email: string;
+  timestamp: string;
+  message: string;
+  files_changed_count: number;
+  insertions: number;
+  deletions: number;
+}
+
+export interface GitContributorItem {
+  name: string;
+  email: string;
+  commit_count: number;
+  first_commit_date: string;
+  last_commit_date: string;
+}
+
+export interface GitFileHistoryItem {
+  file_path: string;
+  commit_count: number;
+  last_commit_hash: string;
+  last_commit_date: string;
+  last_author: string;
+}
+
+export interface GitActivityPoint {
+  date: string;
+  commit_count: number;
+}
+
+export interface GitRepositorySummary {
+  has_git_metadata: boolean;
+  current_branch: string;
+  head_commit_hash?: string | null;
+  analyzed_commit_count: number;
+  total_contributors: number;
+  oldest_commit_date?: string | null;
+  newest_commit_date?: string | null;
+}
+
+export interface RepositoryGitResponse {
+  repo_id: string;
+  summary: GitRepositorySummary;
+  commits: GitCommitItem[];
+  contributors: GitContributorItem[];
+  top_changed_files: GitFileHistoryItem[];
+  activity_timeline: GitActivityPoint[];
+}
+
+
 
 
 
