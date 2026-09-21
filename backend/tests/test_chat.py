@@ -388,7 +388,7 @@ def test_chat_provider_failure_handling():
     try:
         response = client.post(
             f"/api/repositories/{repo_id}/chat",
-            json={"message": "Explain app.py"},
+            json={"message": "x"},
         )
         assert response.status_code == 500
         assert "RuntimeError" not in response.json()["detail"]  # No raw stack trace leakage

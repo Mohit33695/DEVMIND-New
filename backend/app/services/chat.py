@@ -83,6 +83,25 @@ class CodebaseChatService:
             top_k=request.top_k,
         )
 
+        provider = cls.get_llm_provider()
+
+        # Zero-retrieval short-circuit: DO NOT invoke LLM when zero evidence was retrieved
+        if not retrieval_resp.results or not sources or not context_str.strip():
+            insufficient_msg = (
+                "I couldn't find enough relevant repository context to answer this reliably. "
+                "Please try re-indexing or searching for specific file names or symbol signatures."
+            )
+            return ChatResponse(
+                repo_id=repo_id,
+                query=request.message,
+                answer=insufficient_msg,
+                sources=[],
+                provider=provider.get_provider_name(),
+                retrieved_count=0,
+                grounded=False,
+                indexed_status=index_status.status,
+            )
+
         # 4. Filter history to ensure role restriction (user/assistant only, max 6 items)
         filtered_history: List[ChatMessage] = []
         for msg in (request.history or [])[-6:]:
@@ -91,7 +110,6 @@ class CodebaseChatService:
 
         # 5. Generate LLM Response
         system_instruction = ContextBuilder.construct_system_prompt()
-        provider = cls.get_llm_provider()
 
         llm_response = provider.generate_response(
             system_instruction=system_instruction,
