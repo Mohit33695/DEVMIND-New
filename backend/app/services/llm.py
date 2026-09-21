@@ -15,6 +15,45 @@ from app.core.config import UnsupportedProviderError, get_settings
 from app.schemas.chat import ChatMessage
 
 
+# -----------------------------------------------------------------------------
+# Domain Exceptions for LLM Providers
+# -----------------------------------------------------------------------------
+class LLMProviderError(Exception):
+    """Base domain exception for LLM completion provider errors."""
+
+    pass
+
+
+class LLMAuthError(LLMProviderError):
+    """Raised when provider authentication fails (HTTP 401)."""
+
+    pass
+
+
+class LLMRateLimitError(LLMProviderError):
+    """Raised when provider rate limits are exceeded (HTTP 429)."""
+
+    pass
+
+
+class LLMNetworkError(LLMProviderError):
+    """Raised on socket/transport network failure."""
+
+    pass
+
+
+class LLMTimeoutError(LLMProviderError):
+    """Raised when an LLM HTTP completion request times out."""
+
+    pass
+
+
+class LLMResponseError(LLMProviderError):
+    """Raised when provider response structure or status code is invalid."""
+
+    pass
+
+
 class LLMResponse(BaseModel):
     """Container for generated LLM text and provider metadata."""
 
@@ -133,13 +172,13 @@ def get_llm_provider(provider_name: Optional[str] = None) -> LLMProvider:
     Factory function instantiating the requested or configured LLMProvider.
 
     Args:
-        provider_name: Optional provider identifier override (e.g. 'mock').
+        provider_name: Optional provider identifier override (e.g. 'mock', 'openai').
 
     Returns:
         LLMProvider: An initialized LLM provider instance.
 
     Raises:
-        UnsupportedProviderError: If the requested provider is unknown or unsupported.
+        UnsupportedProviderError: If the requested provider is unknown or missing required API keys.
     """
     settings = get_settings()
     name = (provider_name or settings.LLM_PROVIDER).strip().lower()
@@ -147,6 +186,21 @@ def get_llm_provider(provider_name: Optional[str] = None) -> LLMProvider:
     if name == "mock":
         return MockLLMProvider()
 
+    if name == "openai":
+        if not settings.OPENAI_API_KEY or not settings.OPENAI_API_KEY.strip():
+            raise UnsupportedProviderError(
+                "LLM_PROVIDER is set to 'openai', but OPENAI_API_KEY is not configured."
+            )
+        from app.services.providers.openai_llm import OpenAILLMProvider
+
+        return OpenAILLMProvider(
+            api_key=settings.OPENAI_API_KEY,
+            model=settings.LLM_MODEL,
+            timeout=settings.LLM_TIMEOUT_SECONDS,
+            max_tokens=settings.LLM_MAX_TOKENS,
+            base_url=settings.LLM_API_BASE_URL,
+        )
+
     raise UnsupportedProviderError(
-        f"Unsupported LLM provider: '{name}'. Currently supported providers: ['mock']."
+        f"Unsupported LLM provider: '{name}'. Currently supported providers: ['mock', 'openai']."
     )

@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     # LLM Provider Configuration
     LLM_PROVIDER: str = "mock"
     LLM_MODEL: str = "mock"
+    LLM_API_BASE_URL: str = "https://api.openai.com/v1"
     LLM_TIMEOUT_SECONDS: int = 30
     LLM_MAX_TOKENS: int = 1024
 
@@ -42,7 +43,13 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: Optional[str] = None
     ANTHROPIC_API_KEY: Optional[str] = None
 
-    @validator("EMBEDDING_TIMEOUT_SECONDS", "EMBEDDING_BATCH_SIZE", "EMBEDDING_DIMENSION")
+    @validator(
+        "EMBEDDING_TIMEOUT_SECONDS",
+        "EMBEDDING_BATCH_SIZE",
+        "EMBEDDING_DIMENSION",
+        "LLM_TIMEOUT_SECONDS",
+        "LLM_MAX_TOKENS",
+    )
     def validate_positive_int(cls, v, field):
         if v <= 0:
             raise ValueError(f"{field.name} must be greater than 0")
