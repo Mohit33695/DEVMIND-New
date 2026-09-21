@@ -10,7 +10,7 @@ import os
 from typing import List, Optional
 from app.schemas.chat import ChatMessage, ChatRequest, ChatResponse
 from app.services.context import ContextBuilder
-from app.services.llm import LLMProvider, MockLLMProvider
+from app.services.llm import LLMProvider, MockLLMProvider, get_llm_provider
 from app.services.rag import CodebaseRAGService
 from app.services.storage import RepositoryNotFoundError, RepositoryStorageService
 
@@ -22,9 +22,9 @@ class CodebaseChatService:
 
     @classmethod
     def get_llm_provider(cls) -> LLMProvider:
-        """Returns the active LLM provider instance (defaults to MockLLMProvider)."""
+        """Returns the active LLM provider instance."""
         if cls._llm_provider is None:
-            cls._llm_provider = MockLLMProvider()
+            return get_llm_provider()
         return cls._llm_provider
 
     @classmethod

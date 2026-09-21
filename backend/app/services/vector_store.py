@@ -9,7 +9,7 @@ guaranteeing zero cross-repository retrieval leakage without external database d
 
 from abc import ABC, abstractmethod
 import math
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from app.schemas.rag import CodeChunk
 
@@ -50,6 +50,18 @@ class VectorStore(ABC):
         """Returns total chunks indexed for a repository."""
         pass
 
+    @abstractmethod
+    def set_repository_metadata(
+        self, repo_id: str, provider: str, model: str, dimension: int
+    ) -> None:
+        """Stores index metadata for a repository."""
+        pass
+
+    @abstractmethod
+    def get_repository_metadata(self, repo_id: str) -> Optional[Dict[str, Any]]:
+        """Returns index metadata for a repository if present."""
+        pass
+
 
 class InMemoryVectorStore(VectorStore):
     """
@@ -60,6 +72,8 @@ class InMemoryVectorStore(VectorStore):
     def __init__(self):
         # Maps repo_id -> List[Tuple[CodeChunk, List[float]]]
         self._storage: Dict[str, List[Tuple[CodeChunk, List[float]]]] = {}
+        # Maps repo_id -> Dict[str, Any] metadata
+        self._metadata: Dict[str, Dict[str, Any]] = {}
 
     @staticmethod
     def _cosine_similarity(vec_a: List[float], vec_b: List[float]) -> float:
@@ -122,9 +136,11 @@ class InMemoryVectorStore(VectorStore):
         return scored_results[:top_k]
 
     def delete_repository_vectors(self, repo_id: str) -> None:
-        """Removes all stored chunks and vectors for repo_id."""
+        """Removes all stored chunks, vectors, and metadata for repo_id."""
         if repo_id in self._storage:
             del self._storage[repo_id]
+        if repo_id in self._metadata:
+            del self._metadata[repo_id]
 
     def has_repository(self, repo_id: str) -> bool:
         """Returns True if repo_id has indexed vectors."""
@@ -135,6 +151,20 @@ class InMemoryVectorStore(VectorStore):
         if repo_id in self._storage:
             return len(self._storage[repo_id])
         return 0
+
+    def set_repository_metadata(
+        self, repo_id: str, provider: str, model: str, dimension: int
+    ) -> None:
+        """Stores index metadata for a repository."""
+        self._metadata[repo_id] = {
+            "provider": provider,
+            "model": model,
+            "dimension": dimension,
+        }
+
+    def get_repository_metadata(self, repo_id: str) -> Optional[Dict[str, Any]]:
+        """Returns index metadata for a repository if present."""
+        return self._metadata.get(repo_id)
 
 
 # Global singleton instance of vector store for in-memory service persistence

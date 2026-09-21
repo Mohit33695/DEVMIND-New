@@ -1,15 +1,17 @@
 """
-LLM Provider Abstraction & Mock Provider Implementation.
+LLM Provider Abstraction, Mock Provider Implementation, & Provider Factory.
 
 Purpose:
-Defines the LLMProvider interface for generating grounded codebase answers and
-implements MockLLMProvider for offline, deterministic development and testing.
+Defines the LLMProvider interface for generating grounded codebase answers,
+implements MockLLMProvider for offline development/testing, and exposes a factory
+function for environment-based provider resolution.
 """
 
 from abc import ABC, abstractmethod
 from typing import List, Optional
 from pydantic import BaseModel
 
+from app.core.config import UnsupportedProviderError, get_settings
 from app.schemas.chat import ChatMessage
 
 
@@ -124,3 +126,27 @@ class MockLLMProvider(LLMProvider):
             model_name=self.MODEL_NAME,
             grounded=True,
         )
+
+
+def get_llm_provider(provider_name: Optional[str] = None) -> LLMProvider:
+    """
+    Factory function instantiating the requested or configured LLMProvider.
+
+    Args:
+        provider_name: Optional provider identifier override (e.g. 'mock').
+
+    Returns:
+        LLMProvider: An initialized LLM provider instance.
+
+    Raises:
+        UnsupportedProviderError: If the requested provider is unknown or unsupported.
+    """
+    settings = get_settings()
+    name = (provider_name or settings.LLM_PROVIDER).strip().lower()
+
+    if name == "mock":
+        return MockLLMProvider()
+
+    raise UnsupportedProviderError(
+        f"Unsupported LLM provider: '{name}'. Currently supported providers: ['mock']."
+    )

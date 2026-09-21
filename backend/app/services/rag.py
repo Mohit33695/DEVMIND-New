@@ -7,8 +7,10 @@ embedding generation, vector storage, and repository-scoped semantic retrieval w
 """
 
 import os
-from typing import Dict, List, Optional
+import re
+from typing import Dict, List, Optional, Set
 
+from app.core.config import get_settings
 from app.schemas.rag import (
     CodeChunk,
     RepositoryIndexStatus,
@@ -18,11 +20,22 @@ from app.schemas.rag import (
 )
 from app.schemas.symbols import SymbolItem
 from app.services.chunking import HybridChunker
-from app.services.embeddings import EmbeddingProvider, MockEmbeddingProvider
+from app.services.embeddings import EmbeddingProvider, get_embedding_provider
 from app.services.parser.service import CodeIntelligenceService
 from app.services.scanner import RepositoryScanner
 from app.services.storage import RepositoryNotFoundError, RepositoryStorageService
 from app.services.vector_store import VectorStore, global_vector_store
+
+
+def sanitize_error_message(text: str) -> str:
+    """Sanitizes sensitive information (API keys, authorization headers) from exception messages."""
+    if not text:
+        return "Unknown error"
+    # Redact Bearer tokens
+    text = re.sub(r'Bearer\s+[A-Za-z0-9_\-\.]+', 'Bearer [REDACTED]', text)
+    # Redact OpenAI style API keys (sk-...)
+    text = re.sub(r'sk-[A-Za-z0-9_\-\.]+', '[REDACTED]', text)
+    return text
 
 
 class CodebaseRAGService:
@@ -34,7 +47,7 @@ class CodebaseRAGService:
     @classmethod
     def get_embedding_provider(cls) -> EmbeddingProvider:
         """Returns the active embedding provider instance."""
-        return MockEmbeddingProvider(dimension=384)
+        return get_embedding_provider()
 
     @classmethod
     def get_vector_store(cls) -> VectorStore:
@@ -115,6 +128,7 @@ class CodebaseRAGService:
 
         provider = cls.get_embedding_provider()
         vector_store = cls.get_vector_store()
+        settings = get_settings()
 
         # Mark status as indexing
         cls._status_cache[repo_id] = RepositoryIndexStatus(
@@ -174,11 +188,17 @@ class CodebaseRAGService:
             if chunk_contents:
                 embeddings = provider.embed_texts(chunk_contents)
 
-            # 5. Clear old index & Save new vectors to vector store
+            # 5. Clear old index & Save new vectors + metadata to vector store
             vector_store.delete_repository_vectors(repo_id)
 
             if all_chunks and embeddings:
                 vector_store.add_chunks(repo_id, all_chunks, embeddings)
+                vector_store.set_repository_metadata(
+                    repo_id=repo_id,
+                    provider=provider.get_provider_name(),
+                    model=settings.EMBEDDING_MODEL,
+                    dimension=provider.get_dimension(),
+                )
 
             status_obj = RepositoryIndexStatus(
                 repo_id=repo_id,
@@ -193,6 +213,9 @@ class CodebaseRAGService:
             return status_obj
 
         except Exception as exc:
+            # Clean up partial vectors completely on failure
+            vector_store.delete_repository_vectors(repo_id)
+            sanitized_err = sanitize_error_message(str(exc))
             status_obj = RepositoryIndexStatus(
                 repo_id=repo_id,
                 status="failed",
@@ -201,7 +224,7 @@ class CodebaseRAGService:
                 total_chunks=0,
                 embedding_dimension=provider.get_dimension(),
                 embedding_provider=provider.get_provider_name(),
-                error=f"Indexing failed: {str(exc)}",
+                error=f"Indexing failed: {sanitized_err}",
             )
             cls._status_cache[repo_id] = status_obj
             return status_obj
@@ -241,10 +264,28 @@ class CodebaseRAGService:
 
         provider = cls.get_embedding_provider()
         vector_store = cls.get_vector_store()
+        settings = get_settings()
 
         # If repo is not indexed yet, auto-index it
         if not vector_store.has_repository(repo_id):
             cls.index_repository(repo_id)
+        else:
+            # Check metadata for mismatch without auto-reindexing
+            indexed_meta = vector_store.get_repository_metadata(repo_id)
+            if indexed_meta:
+                curr_provider = provider.get_provider_name()
+                curr_model = settings.EMBEDDING_MODEL
+                curr_dim = provider.get_dimension()
+
+                if (
+                    indexed_meta.get("provider") != curr_provider
+                    or indexed_meta.get("model") != curr_model
+                    or indexed_meta.get("dimension") != curr_dim
+                ):
+                    raise ValueError(
+                        f"Repository '{repo_id}' index requires re-indexing due to an embedding provider, "
+                        f"model, or dimension change. Please explicitly call POST /api/repositories/{repo_id}/index."
+                    )
 
         # 1. Embed query
         query_vectors = provider.embed_texts([query])
