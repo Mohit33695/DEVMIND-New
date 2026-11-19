@@ -2,6 +2,9 @@ import type {
   RepositoryUploadResponse,
   RepositoryScanResult,
   RepositoryFileContentResponse,
+  RepositorySummary,
+  RepositoryDetailResponse,
+  RepositoryDeleteResponse,
   RepositorySymbolsResponse,
   SymbolItem,
   FileSymbols,
@@ -48,6 +51,9 @@ export type {
   RepositoryUploadResponse,
   RepositoryScanResult,
   RepositoryFileContentResponse,
+  RepositorySummary,
+  RepositoryDetailResponse,
+  RepositoryDeleteResponse,
   RepositorySymbolsResponse,
   SymbolItem,
   FileSymbols,
@@ -94,7 +100,6 @@ export interface HealthResponse {
   status: string;
   service: string;
 }
-
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
 
@@ -566,12 +571,83 @@ export async function sendRepositoryChatMessage(
   return response.json();
 }
 
+// 16. List All Stored Repositories GET request
+export async function fetchRepositories(): Promise<RepositorySummary[]> {
+  const response = await fetch(`${API_BASE_URL}/api/repositories`, {
+    method: 'GET',
+    headers: {
+      'Accept': 'application/json',
+    },
+  });
 
+  if (!response.ok) {
+    let errorDetail = `Failed to list repositories (HTTP ${response.status})`;
+    try {
+      const errorJson = await response.json();
+      if (errorJson && errorJson.detail) {
+        errorDetail = typeof errorJson.detail === 'string' ? errorJson.detail : JSON.stringify(errorJson.detail);
+      }
+    } catch {
+      // Fallback
+    }
+    throw new Error(errorDetail);
+  }
 
+  return response.json();
+}
 
+// 17. Get Repository Detail GET request
+export async function fetchRepositoryDetail(repoId: string): Promise<RepositoryDetailResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/repositories/${encodeURIComponent(repoId)}`,
+    {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      },
+    }
+  );
 
+  if (!response.ok) {
+    let errorDetail = `Failed to get repository details (HTTP ${response.status})`;
+    try {
+      const errorJson = await response.json();
+      if (errorJson && errorJson.detail) {
+        errorDetail = typeof errorJson.detail === 'string' ? errorJson.detail : JSON.stringify(errorJson.detail);
+      }
+    } catch {
+      // Fallback
+    }
+    throw new Error(errorDetail);
+  }
 
+  return response.json();
+}
 
+// 18. Delete Stored Repository DELETE request
+export async function deleteRepository(repoId: string): Promise<RepositoryDeleteResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/repositories/${encodeURIComponent(repoId)}`,
+    {
+      method: 'DELETE',
+      headers: {
+        'Accept': 'application/json',
+      },
+    }
+  );
 
+  if (!response.ok) {
+    let errorDetail = `Failed to delete repository (HTTP ${response.status})`;
+    try {
+      const errorJson = await response.json();
+      if (errorJson && errorJson.detail) {
+        errorDetail = typeof errorJson.detail === 'string' ? errorJson.detail : JSON.stringify(errorJson.detail);
+      }
+    } catch {
+      // Fallback
+    }
+    throw new Error(errorDetail);
+  }
 
-
+  return response.json();
+}

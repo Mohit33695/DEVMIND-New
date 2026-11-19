@@ -13,7 +13,11 @@ interface ValidationError {
   message: string;
 }
 
-export const UploadCard: React.FC = () => {
+export interface UploadCardProps {
+  onUploadSuccess?: (result: RepositoryUploadResponse) => void;
+}
+
+export const UploadCard: React.FC<UploadCardProps> = ({ onUploadSuccess }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [error, setError] = useState<ValidationError | null>(null);
   const [isDragOver, setIsDragOver] = useState<boolean>(false);
@@ -147,6 +151,9 @@ export const UploadCard: React.FC = () => {
           total_files: result.scan_result?.total_files || 0,
           detected_languages: result.scan_result?.detected_languages || {},
         });
+      }
+      if (onUploadSuccess) {
+        onUploadSuccess(result);
       }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Upload failed due to a server error.';

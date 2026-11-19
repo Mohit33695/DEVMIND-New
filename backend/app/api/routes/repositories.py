@@ -7,14 +7,20 @@ Validates file format, structure, and size constraints without executing code or
 """
 
 import zipfile
-from typing import Optional
+from typing import List, Optional
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel
 
 from app.schemas.dependencies import RepositoryDependenciesResponse
 from app.schemas.documentation import RepositoryDocumentationResponse
 from app.schemas.quality import RepositoryQualityResponse
-from app.schemas.scanner import RepositoryFileContentResponse, RepositoryScanResult
+from app.schemas.scanner import (
+    RepositoryDeleteResponse,
+    RepositoryDetailResponse,
+    RepositoryFileContentResponse,
+    RepositoryScanResult,
+    RepositorySummary,
+)
 from app.schemas.search import RepositorySearchResponse
 from app.schemas.security import RepositorySecurityResponse
 from app.schemas.symbols import RepositorySymbolsResponse
@@ -133,6 +139,12 @@ async def upload_repository_zip(
     try:
         repo_id, dest_dir = RepositoryStorageService.store_repository_zip(file.file)
         scan_result = RepositoryScanner.scan_extracted_directory(dest_dir)
+        RepositoryStorageService.save_repository_metadata(
+            repo_id=repo_id,
+            filename=filename,
+            size=file_size,
+            scan_result=scan_result,
+        )
     except ZipPathTraversalError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -152,6 +164,95 @@ async def upload_repository_zip(
         repo_id=repo_id,
         scan_result=scan_result,
     )
+
+
+@router.get(
+    "/repositories",
+    response_model=List[RepositorySummary],
+    status_code=status.HTTP_200_OK,
+)
+async def list_repositories() -> List[RepositorySummary]:
+    """
+    GET /api/repositories
+
+    Returns a list of all stored repositories with metadata, detected languages,
+    file counts, and vector indexing status.
+    """
+    try:
+        repos = RepositoryStorageService.list_repositories()
+        return [RepositorySummary(**r) for r in repos]
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error listing stored repositories: {str(exc)}",
+        )
+
+
+@router.get(
+    "/repositories/{repo_id}",
+    response_model=RepositoryDetailResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def get_repository_detail(repo_id: str) -> RepositoryDetailResponse:
+    """
+    GET /api/repositories/{repo_id}
+
+    Retrieves full repository metadata and reconstructed file tree for the specified repository.
+    """
+    try:
+        detail = RepositoryStorageService.get_repository_detail(repo_id)
+        return RepositoryDetailResponse(**detail)
+    except RepositoryNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+    except ZipPathTraversalError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error retrieving repository details: {str(exc)}",
+        )
+
+
+@router.delete(
+    "/repositories/{repo_id}",
+    response_model=RepositoryDeleteResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def delete_repository(repo_id: str) -> RepositoryDeleteResponse:
+    """
+    DELETE /api/repositories/{repo_id}
+
+    Safely removes stored repository source files, metadata, and vector index.
+    Protects against path traversal or deletion outside managed storage.
+    """
+    try:
+        RepositoryStorageService.delete_repository(repo_id)
+        return RepositoryDeleteResponse(
+            repo_id=repo_id,
+            deleted=True,
+            message=f"Repository '{repo_id}' successfully deleted.",
+        )
+    except RepositoryNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+    except ZipPathTraversalError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error deleting repository: {str(exc)}",
+        )
 
 
 @router.get(

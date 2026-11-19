@@ -26,6 +26,31 @@ export interface RepositoryFileContentResponse {
   encoding: string;
 }
 
+export interface RepositorySummary {
+  repo_id: string;
+  filename: string;
+  size: number;
+  uploaded_at: string;
+  total_files: number;
+  detected_languages: Record<string, number>;
+  indexing_status: string;
+}
+
+export interface RepositoryDetailResponse {
+  repo_id: string;
+  filename: string;
+  size: number;
+  uploaded_at: string;
+  scan_result: RepositoryScanResult;
+  indexing_status: string;
+}
+
+export interface RepositoryDeleteResponse {
+  repo_id: string;
+  deleted: boolean;
+  message: string;
+}
+
 export type SymbolKind = 'function' | 'class' | 'method' | 'import';
 
 export interface SymbolItem {

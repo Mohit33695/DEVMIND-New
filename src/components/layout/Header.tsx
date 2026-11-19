@@ -1,6 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { BackendStatusBadge } from './BackendStatusBadge';
+import {
+  getActiveRepositoryId,
+  getStoredRepositories,
+  REPO_CHANGED_EVENT,
+} from '@/utils/repositorySession';
 
 interface HeaderProps {
   onToggleMobileSidebar: () => void;
@@ -25,6 +30,33 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileSidebar }) => {
   const location = useLocation();
   const currentTitle = routeTitleMap[location.pathname] || 'Overview';
 
+  const [activeRepoName, setActiveRepoName] = useState<string>('devmind-ai/core');
+
+  useEffect(() => {
+    const updateActiveRepo = () => {
+      const activeId = getActiveRepositoryId();
+      if (activeId) {
+        const repos = getStoredRepositories();
+        const found = repos.find((r) => r.repo_id === activeId);
+        if (found) {
+          setActiveRepoName(found.filename);
+          return;
+        }
+      }
+      setActiveRepoName('devmind-ai/core');
+    };
+
+    updateActiveRepo();
+
+    window.addEventListener(REPO_CHANGED_EVENT, updateActiveRepo);
+    window.addEventListener('storage', updateActiveRepo);
+
+    return () => {
+      window.removeEventListener(REPO_CHANGED_EVENT, updateActiveRepo);
+      window.removeEventListener('storage', updateActiveRepo);
+    };
+  }, []);
+
   return (
     <header style={styles.header}>
       {/* Mobile Toggle & Breadcrumb */}
@@ -43,7 +75,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileSidebar }) => {
         </button>
 
         <div style={styles.breadcrumb}>
-          <span style={styles.repoCrumb}>devmind-ai/core</span>
+          <span style={styles.repoCrumb}>{activeRepoName}</span>
           <span style={styles.crumbSeparator}>/</span>
           <span style={styles.activeCrumb}>{currentTitle}</span>
         </div>

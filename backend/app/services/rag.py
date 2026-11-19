@@ -106,6 +106,26 @@ class CodebaseRAGService:
         )
 
     @classmethod
+    def delete_repository_index(cls, repo_id: str) -> None:
+        """
+        Deletes vector index and status cache for a repository.
+
+        Args:
+            repo_id: Unique repository identifier.
+        """
+        if not repo_id or not repo_id.strip():
+            return
+
+        if repo_id in cls._status_cache:
+            del cls._status_cache[repo_id]
+
+        try:
+            vector_store = cls.get_vector_store()
+            vector_store.delete_repository_vectors(repo_id)
+        except Exception as exc:
+            logger.warning(f"Error deleting vector store for repository '{repo_id}': {exc}")
+
+    @classmethod
     def index_repository(cls, repo_id: str) -> RepositoryIndexStatus:
         """
         Indexes stored repository source code into vector storage.

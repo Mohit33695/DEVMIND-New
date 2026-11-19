@@ -140,3 +140,50 @@ def test_read_repository_file_content_binary():
         if os.path.exists(dest_dir):
             shutil.rmtree(dest_dir, ignore_errors=True)
 
+
+def test_save_and_list_repositories():
+    """Verifies that save_repository_metadata and list_repositories work together."""
+    files = {"src/app.py": "print('devmind')", "README.md": "# Docs"}
+    zip_bytes = create_sample_zip(files)
+    repo_id, dest_dir = RepositoryStorageService.store_repository_zip(zip_bytes)
+
+    try:
+        from app.services.scanner import RepositoryScanner
+
+        scan_res = RepositoryScanner.scan_extracted_directory(dest_dir)
+        RepositoryStorageService.save_repository_metadata(
+            repo_id=repo_id,
+            filename="my_project.zip",
+            size=len(zip_bytes),
+            scan_result=scan_res,
+        )
+
+        repos = RepositoryStorageService.list_repositories()
+        matching = [r for r in repos if r["repo_id"] == repo_id]
+        assert len(matching) == 1
+        assert matching[0]["filename"] == "my_project.zip"
+        assert matching[0]["total_files"] == 2
+        assert "Python" in matching[0]["detected_languages"]
+
+        detail = RepositoryStorageService.get_repository_detail(repo_id)
+        assert detail["repo_id"] == repo_id
+        assert detail["filename"] == "my_project.zip"
+        assert detail["scan_result"].total_files == 2
+    finally:
+        RepositoryStorageService.delete_repository(repo_id)
+        assert not os.path.exists(dest_dir)
+
+
+def test_delete_repository_path_traversal():
+    """Verifies delete_repository raises ZipPathTraversalError when given malicious path."""
+    with pytest.raises(ZipPathTraversalError):
+        RepositoryStorageService.delete_repository("../evil_dir")
+
+    with pytest.raises(ZipPathTraversalError):
+        RepositoryStorageService.delete_repository("..")
+
+
+def test_delete_repository_not_found():
+    """Verifies delete_repository raises RepositoryNotFoundError when repo does not exist."""
+    with pytest.raises(RepositoryNotFoundError):
+        RepositoryStorageService.delete_repository("uuid-does-not-exist-12345")

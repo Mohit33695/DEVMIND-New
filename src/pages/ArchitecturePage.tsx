@@ -1,14 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArchitecturePanel } from '@/components/repository/ArchitecturePanel';
+import { getActiveRepositoryId, REPO_CHANGED_EVENT } from '@/utils/repositorySession';
 
 export const ArchitecturePage: React.FC = () => {
-  const [repoId, setRepoId] = useState<string | null>(null);
+  const [repoId, setRepoId] = useState<string | null>(() => getActiveRepositoryId());
   const navigate = useNavigate();
 
   useEffect(() => {
-    const activeId = sessionStorage.getItem('devmind_active_repo_id');
-    setRepoId(activeId);
+    const handleRepoChanged = () => {
+      setRepoId(getActiveRepositoryId());
+    };
+
+    window.addEventListener(REPO_CHANGED_EVENT, handleRepoChanged);
+    window.addEventListener('storage', handleRepoChanged);
+
+    return () => {
+      window.removeEventListener(REPO_CHANGED_EVENT, handleRepoChanged);
+      window.removeEventListener('storage', handleRepoChanged);
+    };
   }, []);
 
   const handleSelectFile = (filePath: string) => {

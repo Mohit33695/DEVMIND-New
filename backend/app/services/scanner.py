@@ -31,6 +31,13 @@ IGNORED_DIRECTORIES: Set[str] = {
     ".venv",
 }
 
+# Internal system files to ignore during scanning
+IGNORED_FILES: Set[str] = {
+    "index.json",
+    ".devmind_meta.json",
+    "index.json.tmp",
+}
+
 # Mapping of file extensions to programming languages
 EXTENSION_LANGUAGE_MAP: Dict[str, str] = {
     # Python
@@ -144,8 +151,8 @@ class RepositoryScanner:
                 directories.add(norm_dir)
 
             for file in files:
-                # Skip hidden system/git files if any
-                if file.startswith(".git"):
+                # Skip hidden system/git files and internal devmind data files
+                if file.startswith(".git") or file in IGNORED_FILES:
                     continue
 
                 rel_filepath = (
